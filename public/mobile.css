@@ -1,0 +1,94 @@
+/* Joto Ramen: layout polish and app-style mobile navigation (loaded after style.css) */
+.no-scrollbar{scrollbar-width:none}.no-scrollbar::-webkit-scrollbar{display:none}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+img{max-width:100%}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid #C9A84C;outline-offset:2px}
+
+/* modal base (previously unstyled) */
+.modal{padding:0}
+.modal-content{background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:18px;width:calc(100% - 32px);padding:24px;max-height:90vh;max-height:90svh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+
+/* bottom navigation */
+#bottom-nav{padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:500;color:rgba(245,236,215,.6);position:relative;background:none;border:0;cursor:pointer;transition:color .2s}
+.bn-item svg{width:24px;height:24px}
+.bn-item.active{color:#E84545}
+.bn-item.active::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 4px 4px;background:#E84545}
+.bn-badge{position:absolute;top:6px;left:calc(50% + 4px);min-width:18px;height:18px;border-radius:9px;background:#E84545;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;line-height:1}
+.more-link{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:14px;background:rgba(255,255,255,.05);color:#F5ECD7;font-size:13px;text-align:center;text-decoration:none;border:0;cursor:pointer}
+.more-link span.i{font-size:22px}
+
+/* compact menu cards */
+.menu-item-card{transition:transform .2s,background .2s}
+.menu-item-card:active{transform:scale(.98)}
+
+@media (max-width:1023px){
+  body{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .floating-whatsapp{display:none!important}
+  #order-cart{bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px;right:12px}
+  #order-cart button{width:100%;justify-content:space-between}
+  footer{padding-bottom:8px}
+}
+@media (max-width:767px){
+  h1{font-size:inherit}h2{font-size:inherit}
+  .promo-banner{animation:none!important}
+  .lantern{opacity:.5}
+  /* modals become bottom sheets */
+  .modal{align-items:flex-end}
+  .modal-content{width:100%;max-width:100%!important;border-radius:20px 20px 0 0;border-bottom:0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:92vh;max-height:92svh;animation:sheetUp .25s ease-out}
+  @keyframes sheetUp{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+  /* reviews: swipeable row */
+  #customer-reviews-list{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding-bottom:6px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+  #customer-reviews-list::-webkit-scrollbar{display:none}
+  #customer-reviews-list.space-y-4>*+*{margin-top:0}
+  #customer-reviews-list .review-card{flex:0 0 86%;scroll-snap-align:center;padding:16px}
+  .review-card:hover{transform:none}
+  .gallery-item .overlay{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+
+section[id]{scroll-margin-top:56px}
+@media (min-width:1024px){section[id]{scroll-margin-top:80px}}
+@media (max-width:767px){.menu-tag{font-size:10px!important;padding:2px 7px!important}}
+
+/* quick action cards */
+.quick-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px;border-radius:16px;background:#232323;border:1px solid rgba(255,255,255,.08);color:#F5ECD7;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:transform .15s,border-color .2s;text-decoration:none;cursor:pointer}
+.quick-card:active{transform:scale(.97)}.quick-card:hover{border-color:rgba(232,69,69,.5)}
+.quick-card .i{font-size:24px;margin-bottom:4px}.quick-card b{font-size:15px}.quick-card small{font-size:12px;color:rgba(245,236,215,.6)}
+/* images: skeleton + fade-in */
+.skeleton{background:linear-gradient(110deg,#262626 8%,#333 18%,#262626 33%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position-x:-200%}}
+.img-fade{opacity:0;transition:opacity .5s ease,transform .6s ease}.img-fade.loaded{opacity:1}
+.menu-item-card:hover .img-fade{transform:scale(1.04)}
+.zoomable{cursor:zoom-in}
+/* featured cards */
+.feat-card{flex:0 0 9.5rem;scroll-snap-align:start;background:#232323;border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden}
+@media(min-width:768px){.feat-card{flex-basis:14rem}}
+/* table (dine-in) mode: menu only */
+.table-mode #home,.table-mode #quick,.table-mode #featured,.table-mode #gallery,.table-mode #reviews,.table-mode #events,.table-mode #locations,.table-mode #reservations,.table-mode footer,.table-mode .promo-banner,.table-mode .floating-whatsapp{display:none!important}
+.table-mode #navbar .hidden.lg\:flex{display:none!important}
+.table-mode #bottom-nav{display:block!important}
+.table-mode #menu{padding-top:16px}
+
+.bn-badge.hidden{display:none}
+@media (max-width:767px){
+  .quick-card{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+  .quick-card .i{font-size:22px;margin:0}.quick-card b{font-size:14px;line-height:1.2}.quick-card small{display:none}
+  .quick-card>span.i+b{flex:1}
+}
+@media (max-width:1023px){ #order-cart button{justify-content:center;gap:12px} }
+
+/* readable dropdowns everywhere (dark list, light text) */
+:root{color-scheme:dark}
+select{background-color:rgba(255,255,255,.08);color:#F5ECD7;-webkit-appearance:none;appearance:none;padding-right:38px!important;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C9A84C' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;background-position:right 14px center}
+select option,select optgroup{background-color:#1f1f1f!important;color:#F5ECD7!important}
+select option:checked{background-color:#3a2a1a!important;color:#fff!important}
+select:disabled{opacity:.7}
+input[type=date],input[type=time]{color-scheme:dark}

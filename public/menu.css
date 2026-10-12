@@ -1,0 +1,100 @@
+/* Joto Ramen: stylish menu, branch picker, location cards, account chip */
+.menu-section{position:relative;background:
+  radial-gradient(900px 340px at 50% -60px,rgba(232,69,69,.16),transparent 70%),
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 80 40'><g fill='none' stroke='%23C9A84C' stroke-opacity='.07' stroke-width='1.2'><circle cx='0' cy='40' r='38'/><circle cx='0' cy='40' r='28'/><circle cx='0' cy='40' r='18'/><circle cx='80' cy='40' r='38'/><circle cx='80' cy='40' r='28'/><circle cx='80' cy='40' r='18'/><circle cx='40' cy='20' r='38'/><circle cx='40' cy='20' r='28'/><circle cx='40' cy='20' r='18'/></g></svg>"),
+  linear-gradient(#1a1a1a,#0d0d0d)}
+.menu-board{display:flex;flex-direction:column;gap:2.2rem}
+.menu-cat-head{display:flex;align-items:center;gap:14px;margin:0 0 20px}
+.menu-cat-head .jp{font-size:2.1rem;line-height:1;color:#C9A84C;writing-mode:horizontal-tb;letter-spacing:.06em;text-shadow:0 2px 18px rgba(201,168,76,.35)}
+.menu-cat-head h3{margin:0;font-size:1.5rem;font-weight:800;color:#F5ECD7;letter-spacing:.02em}
+.menu-cat-head p{margin:0;font-size:.82rem;color:rgba(245,236,215,.55)}
+.menu-cat-head .rule{flex:1;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(201,168,76,.6),rgba(232,69,69,.35),transparent)}
+.menu-cards{display:grid;gap:14px}
+.menu-cards--feature{grid-template-columns:repeat(2,minmax(0,1fr));gap:54px 12px;padding-top:44px}
+.menu-cards--plain{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+.dish{position:relative;display:flex;flex-direction:column;background:linear-gradient(165deg,#2a2a2a 0%,#171717 100%);border:1px solid rgba(255,255,255,.08);border-radius:18px;transition:transform .2s,border-color .2s,box-shadow .2s}
+.dish:hover{transform:translateY(-3px);border-color:rgba(201,168,76,.45);box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.dish-photo{position:relative;overflow:hidden;background:#262626}
+.dish-photo img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+.dish:hover .dish-photo img{transform:scale(1.07)}
+.dish--feature .dish-photo{width:116px;height:116px;border-radius:50%;margin:-52px auto 0;box-shadow:0 0 0 3px #C9A84C,0 0 0 8px rgba(201,168,76,.16),0 16px 28px rgba(0,0,0,.6);z-index:2}
+.dish--plain .dish-photo{width:100%;aspect-ratio:4/3;border-radius:17px 17px 0 0}
+.dish-body{display:flex;flex-direction:column;flex:1;padding:10px 12px 14px}
+.dish--feature .dish-body{text-align:center;align-items:center}
+.dish-top{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.dish--feature .dish-top{justify-content:center}
+.dish-no{font-weight:800;font-size:11px;letter-spacing:.16em;color:#C9A84C;text-transform:uppercase}
+.dish-spice{font-size:12px}
+.dish-name{margin:4px 0 0;font-size:.98rem;line-height:1.25;font-weight:800;color:#F5ECD7}
+.dish-jp{margin:2px 0 0;font-size:.78rem;color:#C9A84C}
+.dish-desc{margin:6px 0 0;font-size:.78rem;line-height:1.5;color:rgba(245,236,215,.66);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dish-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.dish--feature .dish-tags{justify-content:center}
+.tagchip{font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;background:rgba(255,255,255,.1);color:#ddd;letter-spacing:.02em}
+.tag-vegan{background:rgba(63,182,122,.18);color:#6fe3a8}.tag-spicy{background:rgba(255,140,60,.18);color:#ffb070}.tag-pork{background:rgba(255,120,150,.16);color:#ff9bb3}
+.dish-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:12px;width:100%}
+.dish-price{background:#C9A84C;color:#1a1a1a;font-weight:800;border-radius:999px;padding:4px 11px;font-size:.82rem;white-space:nowrap;box-shadow:0 4px 12px rgba(201,168,76,.28)}
+.dish-add{background:#E84545;color:#fff;border:0;border-radius:999px;padding:7px 14px;font-weight:700;font-size:.82rem;cursor:pointer;box-shadow:0 6px 16px rgba(232,69,69,.35);transition:transform .15s,background .2s}
+.dish-add:hover{background:#f05a5a}.dish-add:active{transform:scale(.94)}
+.dish-ribbon{position:absolute;top:12px;right:-7px;z-index:3;background:#E84545;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:4px 12px 4px 14px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,9px 50%);box-shadow:0 6px 14px rgba(232,69,69,.4)}
+.dish--rec{border-color:rgba(232,69,69,.35)}
+.dish--feature .dish-ribbon{top:10px}
+
+@media (min-width:768px){
+  .menu-cat-head .jp{font-size:2.8rem}.menu-cat-head h3{font-size:2rem}.menu-cat-head p{font-size:.95rem}
+  .menu-cards--feature{grid-template-columns:repeat(2,minmax(0,1fr));gap:34px 30px;padding-top:0}
+  .dish--feature{flex-direction:row;align-items:center;min-height:200px;margin-left:78px}
+  .dish--feature .dish-photo{position:absolute;left:-78px;top:50%;transform:translateY(-50%);width:176px;height:176px;margin:0}
+  .dish--feature:hover .dish-photo{transform:translateY(-50%) rotate(-3deg)}
+  .dish--feature .dish-body{padding:18px 20px 18px 112px;text-align:left;align-items:flex-start}
+  .dish--feature .dish-top,.dish--feature .dish-tags{justify-content:flex-start}
+  .menu-cards--plain{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+  .dish-name{font-size:1.15rem}.dish--feature .dish-name{font-size:1.3rem}.dish-desc{font-size:.85rem}.dish-price{font-size:.95rem}.dish-add{padding:9px 18px;font-size:.9rem}
+}
+@media (min-width:1100px){.menu-cards--feature{gap:36px 40px}}
+
+/* branch picker + pill */
+.branch-pill{display:flex;align-items:center;gap:6px;max-width:150px;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#F5ECD7;font-size:12.5px;font-weight:600;cursor:pointer}
+.branch-pill #branch-pill-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.branch-pill .caret{opacity:.6}
+.branch-pill:hover{border-color:#C9A84C}
+@media(min-width:1024px){.branch-pill{max-width:230px;font-size:14px;padding:9px 14px}}
+.branch-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#F5ECD7;cursor:pointer;transition:border-color .2s,background .2s}
+.branch-card:hover{border-color:#C9A84C;background:rgba(201,168,76,.08)}.branch-card.selected{border-color:#E84545;background:rgba(232,69,69,.1)}
+.branch-card .b-ico{font-size:22px}.branch-card .b-txt{flex:1;display:flex;flex-direction:column;gap:2px}.branch-card b{font-size:1rem}.branch-card small{color:rgba(245,236,215,.6)}.branch-card em{font-style:normal;color:#C9A84C;font-size:.78rem}
+.branch-card .b-tick{color:#E84545;font-weight:800;font-size:1.2rem}
+
+/* location cards */
+.loc-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;overflow:hidden}
+.loc-card.mine{border-color:#C9A84C;box-shadow:0 0 0 1px rgba(201,168,76,.4),0 18px 40px rgba(0,0,0,.4)}
+.loc-badge{flex:none;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;background:#C9A84C;color:#1a1a1a;border-radius:999px;padding:3px 10px}
+
+/* account chip for admin/staff */
+.acct-staff{max-width:170px;background:rgba(201,168,76,.18)!important;color:#C9A84C!important}
+.acct-staff #login-btn-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;display:inline-block}
+
+/* phones: keep the header on one line and the dish footer tidy */
+@media (max-width:767px){
+  .dish-foot{flex-direction:column;align-items:stretch;gap:8px}
+  .dish-price{text-align:center;font-size:.9rem}
+  .dish-add{width:100%;white-space:nowrap}
+  .dish-body{padding:8px 10px 12px}
+}
+@media (max-width:520px){
+  .brand-text p:first-child{font-size:15px;white-space:nowrap;line-height:1.1}
+  .brand-text p+p{display:none}
+  #navbar img[alt="Joto Ramen"]{width:34px;height:34px}
+  .branch-pill{max-width:150px;padding:6px 9px;font-size:12px}
+  #navbar #login-btn-text{display:none}
+  #navbar .acct-staff #login-btn-text{display:inline-block;max-width:70px}
+}
+
+/* how the customer is served */
+.mode-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#F5ECD7;cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.mode-card:hover{border-color:#C9A84C;background:rgba(201,168,76,.08)}.mode-card:active{transform:scale(.98)}
+.mode-card .m-ico{font-size:30px}.mode-card .m-txt{display:flex;flex-direction:column;gap:2px}.mode-card b{font-size:1.1rem}.mode-card small{color:rgba(245,236,215,.62);font-size:.82rem}
+.order-context{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.ctx-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#F5ECD7;font-size:.85rem;font-weight:600;cursor:pointer}
+.ctx-chip u{color:#C9A84C;font-weight:500;text-decoration:none;opacity:.85}.ctx-chip:hover{border-color:#C9A84C}
+.ctx-act{background:rgba(232,69,69,.14);border-color:rgba(232,69,69,.45)}
+.order-mode-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:#F5ECD7;font-weight:600}
+.order-mode-line button{background:none;border:0;color:#C9A84C;font-weight:600;cursor:pointer;text-decoration:underline}
