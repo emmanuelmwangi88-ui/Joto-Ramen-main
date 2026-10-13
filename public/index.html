@@ -60,12 +60,9 @@
     <div id="table-banner" class="hidden sticky top-14 z-40 bg-lantern-red text-white text-sm">
         <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3"><span>🍽️ Ordering to <b id="table-name">Table</b></span><button onclick="leaveTable()" class="underline opacity-80 text-xs">Not at a table?</button></div>
     </div>
-    <div id="order-strip" class="hidden sticky top-14 lg:top-20 z-40 bg-muted-gold text-charcoal text-sm">
-        <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3"><span id="order-strip-text" class="font-medium"></span><button type="button" onclick="showDone()" class="px-3 py-1 rounded-full bg-charcoal text-muted-gold font-semibold text-xs">Pay now</button></div>
-    </div>
     <!-- Hero Section -->
     <section id="home" class="relative overflow-hidden bg-charcoal">
-        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('hero.jpg')"></div>
+        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('hero.webp')"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/85 to-charcoal/50 md:bg-gradient-to-r md:from-charcoal md:via-charcoal/90 md:to-charcoal/30"></div>
         <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 md:pt-28 md:pb-32">
             <div class="max-w-3xl text-center md:text-left fade-in">
@@ -436,6 +433,7 @@
                 <a class="more-link" data-call href="tel:+254726652586"><span class="i">📞</span>Call us</a>
                 <a class="more-link" data-wa target="_blank" rel="noopener" href="https://wa.me/254726652586"><span class="i">💬</span>WhatsApp</a>
                 <a class="more-link" href="https://instagram.com/joto_ramen_nairobi" target="_blank" rel="noopener"><span class="i">📸</span>Instagram</a>
+                <button class="more-link" onclick="closeMore();openOrders()"><span class="i">🧾</span>My orders</button>
                 <button class="more-link" onclick="closeMore();openLoginModal()"><span class="i">👤</span><span id="more-account">Login</span></button>
                 <button class="more-link hidden" id="more-signout" onclick="doSignOut()"><span class="i">🚪</span>Sign out</button>
                 <button class="more-link" onclick="closeMore();openBranchModal()"><span class="i">📍</span>Change restaurant</button>
@@ -469,29 +467,16 @@
         </div>
     </div>
 
-    <div id="done-modal" class="modal" onclick="if(event.target===this)closeDone()">
-        <div class="modal-content max-w-md text-center">
-            <div class="text-5xl mb-2" id="done-icon">✅</div>
-            <h3 class="text-2xl font-bold text-parchment" id="done-title">Order received</h3>
-            <p class="text-parchment/70 text-sm mt-1" id="done-sub"></p>
-            <p class="text-muted-gold text-sm font-semibold mt-2" id="done-status" aria-live="polite"></p>
-            <div id="done-cancel" class="mt-5 rounded-xl bg-white/5 p-4">
-                <p class="text-parchment/80 text-sm">Changed your mind? You can cancel for</p>
-                <p class="text-4xl font-bold text-lantern-red my-1" id="done-timer" aria-live="off">2:00</p>
-                <button type="button" onclick="cancelMyOrder()" class="w-full mt-1 py-3 rounded-lg border border-lantern-red text-lantern-red font-semibold hover:bg-lantern-red hover:text-white active:bg-lantern-red active:text-white transition-all">Cancel my order</button>
-            </div>
-            <p id="done-after" class="hidden text-parchment/70 text-sm mt-4"></p>
-            <div id="pay-box" class="hidden mt-4 rounded-xl bg-white/5 p-4 text-left">
-                <div id="pay-form">
-                    <label for="pay-phone" class="block text-parchment/80 text-sm mb-1">M-Pesa number</label>
-                    <input id="pay-phone" type="tel" inputmode="tel" placeholder="0712 345 678" class="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-parchment focus:outline-none focus:border-lantern-red">
-                    <button id="pay-btn" type="button" onclick="payNow()" class="w-full mt-3 py-3 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50">Pay with M-Pesa</button>
-                </div>
-                <p id="pay-status" class="text-parchment/70 text-sm mt-2"></p>
-            </div>
-            <button type="button" onclick="closeDone()" class="mt-5 w-full py-3 bg-lantern-red text-white rounded-lg font-semibold">Done</button>
+    <div id="orders-modal" class="modal" onclick="if(event.target===this)closeOrders()">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-3"><h3 class="text-xl font-bold text-parchment">My orders</h3><button onclick="closeOrders()" aria-label="Close" class="text-parchment/60 text-2xl leading-none">×</button></div>
+            <p class="text-parchment/60 text-sm mb-3">Follow your order and pay whenever you like. Orders from the last 24 hours show here.</p>
+            <div id="orders-body" class="space-y-3"></div>
+            <button type="button" onclick="closeOrders()" class="mt-4 w-full py-3 bg-lantern-red text-white rounded-lg font-semibold">Close</button>
         </div>
     </div>
+
+    <button id="orders-fab" type="button" class="orders-fab hidden" onclick="openOrders()" aria-label="My orders and payment"><span class="fab-ico" aria-hidden="true">🧾</span><span id="orders-fab-text">My orders</span><span id="orders-fab-badge" class="fab-badge hidden">0</span></button>
 
     <div class="lightbox" id="lightbox" onclick="closeLightbox()">
         <span class="lightbox-close">&times;</span>

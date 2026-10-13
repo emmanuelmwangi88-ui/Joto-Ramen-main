@@ -140,7 +140,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
     </div>
 
     <div class="rolebar" id="rolebar"></div>
-    <div class="alertbar hidden" id="alert-bar"><b id="alert-text" style="flex:1"></b><button class="btn sm" data-act="silence">Silence</button><button class="btn sm primary" data-act="view" data-id="orders">View orders</button></div>
+    <div class="alertbar hidden" id="alert-bar"><b id="alert-text" style="flex:1"></b><button class="btn sm primary" data-act="view" data-id="orders">View orders</button></div>
 
     <section id="v-dashboard" class="view"></section>
 
@@ -233,6 +233,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
           <div><label for="s-min">Minimum order (KSh)</label><input type="number" min="0" id="s-min"></div>
           <div><label for="s-fee">Delivery fee (KSh)</label><input type="number" min="0" id="s-fee"></div>
         </div>
+        <label for="s-cancel">Customer cancel window (seconds)</label><input type="number" id="s-cancel" min="15" max="300" placeholder="80"><p class="hint">How long a customer can cancel after ordering. 80 seconds = 1 minute 20 seconds. The kitchen can only confirm after this.</p>
         <label for="s-promo">Top banner message</label><input type="text" id="s-promo" maxlength="160"><p class="hint">Leave empty to hide the banner.</p>
         <div class="actions"><button class="btn primary" data-act="save-order">Save ordering settings</button></div>
       </div>
@@ -270,7 +271,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <label>Labels</label><div class="tags" id="d-tags">
     <label><input type="checkbox" value="signature"> Signature</label><label><input type="checkbox" value="popular"> Popular</label><label><input type="checkbox" value="vegan"> Vegan</label>
     <label><input type="checkbox" value="spicy"> Spicy</label><label><input type="checkbox" value="chef"> Chef's pick</label><label><input type="checkbox" value="pork"> Contains pork</label></div>
-  <label for="d-file">Photo</label><input type="file" id="d-file" accept="image/*"><input type="text" id="d-url" placeholder="or paste an image link" style="margin-top:8px"><img id="d-prev" class="preview hidden" alt="">
+  <label for="d-file">Photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="d-file" accept="image/*"><input type="text" id="d-url" placeholder="or paste an image link" style="margin-top:8px"><img id="d-prev" class="preview hidden" alt="">
   <label>Served at</label><div class="tags" id="d-branches"></div><p class="hint">Untick a branch to hide this dish there (for example pork at Kenrail Towers).</p>
   <label class="tags"><span style="display:flex;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="d-avail" checked style="width:auto"> Visible to customers</span></label>
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Save dish</button></div>
@@ -293,7 +294,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <label for="e-loc">Where</label><input type="text" id="e-loc" list="loc-names" placeholder="Pick a branch or type a place" maxlength="120"><datalist id="loc-names"></datalist>
   <label for="e-branch">Branch</label><select id="e-branch"></select>
   <label for="e-desc">Details</label><textarea id="e-desc" rows="3" maxlength="500"></textarea>
-  <label for="e-file">Poster / photo</label><input type="file" id="e-file" accept="image/*"><input type="text" id="e-url" placeholder="or paste an image link" style="margin-top:8px"><img id="e-prev" class="preview hidden" alt="">
+  <label for="e-file">Poster / photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="e-file" accept="image/*"><input type="text" id="e-url" placeholder="or paste an image link" style="margin-top:8px"><img id="e-prev" class="preview hidden" alt="">
   <label class="tags"><span style="display:flex;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="e-pub" checked style="width:auto"> Show on website</span></label>
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Save event</button></div>
 </form></div>
@@ -306,6 +307,8 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <div class="grid g2"><div><label for="l-phone">Branch phone (optional)</label><input type="tel" id="l-phone"><p class="hint">Empty uses the main phone.</p></div>
   <div data-owner><label for="l-order">Display order</label><input type="number" id="l-order" value="10"></div></div>
   <div class="grid g2"><div><label for="l-tables">Number of tables</label><input type="number" id="l-tables" min="0" max="60" value="20"></div><div></div></div>
+  <label for="l-payqr-file">M-Pesa payment QR (till or paybill QR image)</label><input type="file" id="l-payqr-file" accept="image/*"><input type="text" id="l-payqr-url" placeholder="or paste an image link" style="margin-top:8px"><img id="l-payqr-prev" class="preview hidden" alt="">
+  <label for="l-paynote">What customers should see next to the QR</label><input type="text" id="l-paynote" maxlength="120" placeholder="e.g. Till 123456, Joto Ramen Lavington">
   <label for="l-hours">Opening hours (one line per row)</label><textarea id="l-hours" rows="3" placeholder="Mon-Thu: 12pm - 11pm&#10;Fri & Sat: 12pm - 3am"></textarea>
   <label for="l-note">Short note (optional)</label><input type="text" id="l-note" maxlength="140" placeholder="e.g. Pork dishes available at this branch">
   <label for="l-map">Map search text (optional)</label><input type="text" id="l-map" placeholder="Defaults to the address">
@@ -316,7 +319,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
 <!-- Gallery modal -->
 <div class="modal" id="m-gal"><form class="box" id="f-gal">
   <h3>Add photo</h3>
-  <label for="g-file">Upload</label><input type="file" id="g-file" accept="image/*"><input type="text" id="g-url" placeholder="or paste an image link" style="margin-top:8px"><img id="g-prev" class="preview hidden" alt="">
+  <label for="g-file">Upload <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="g-file" accept="image/*"><input type="text" id="g-url" placeholder="or paste an image link" style="margin-top:8px"><img id="g-prev" class="preview hidden" alt="">
   <label for="g-branch">Branch</label><select id="g-branch"></select>
   <label for="g-alt">Caption</label><input type="text" id="g-alt" maxlength="120">
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Add photo</button></div>

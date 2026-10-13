@@ -1,7 +1,7 @@
 /* Joto Ramen service worker: lets the site and admin be installed on a phone,
    shows order notifications, and keeps a copy of the app shell for flaky networks.
    API calls (Supabase) are never cached. */
-const CACHE = 'joto-shell-v3';
+const CACHE = 'joto-shell-v4';
 const SHELL = ['/', 'style.css', 'mobile.css', 'common.js', 'config.js', 'icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

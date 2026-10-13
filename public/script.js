@@ -1,4 +1,4 @@
-var CANCEL_MS=window.JOTO_CANCEL_MS||120000; /* the customer's cancel window; a demo can shorten it */
+var CANCEL_MS=window.JOTO_CANCEL_MS||80000; /* the customer's cancel window; a demo can shorten it */
 /* JOTO RAMEN: customer site (multi-branch, Supabase-backed) */
 var DEFAULT_LOCATIONS = [
   {id:1,slug:'alchemist',name:'The Alchemist, Westlands',address:'The Alchemist, Parklands Road, Westlands, Nairobi',phone:'+254726652586',hours:'Mon-Thu & Sun: 12pm - 11:30pm\nFri & Sat: 12pm - 3:30am',note:'',map_query:'The Alchemist Parklands Road Nairobi',table_count:20},
@@ -13,7 +13,7 @@ var CFG = {min_order:1500, delivery_fee:200, mpesa:false};
 var mainPhone='+254726652586', mainWa='254726652586';
 var tableMode=false, tableCode='', mode=null;
 var menuItems=[], galleryImages=[], customerReviews=[], locationsList=[], eventsList=[];
-var branch=null, currentCat='all', cart={}, currentUser=null, currentProfile=null, currentRating=0, ordering=false, doneTimer=null, payPoll=null;
+var branch=null, currentCat='all', cart={}, currentUser=null, currentProfile=null, currentRating=0, ordering=false;
 
 /* ---------- images ---------- */
 var T320='?t=W3sicmVzaXplIjp7Im1vZGUiOiJmaXQiLCJ3aWR0aCI6MzIwLCJoZWlnaHQiOjMyMH19XQ==';
@@ -106,6 +106,7 @@ async function loadSettings(){
   if(s.min_order) CFG.min_order=parseInt(s.min_order,10)||CFG.min_order;
   if(s.delivery_fee) CFG.delivery_fee=parseInt(s.delivery_fee,10)||CFG.delivery_fee;
   CFG.mpesa=s.mpesa_enabled==='1';
+  if(!window.JOTO_CANCEL_MS&&s.cancel_seconds) CANCEL_MS=Math.min(300,Math.max(15,parseInt(s.cancel_seconds,10)||80))*1000;
   if(s.phone) mainPhone=s.phone;
   if(s.whatsapp) mainWa=s.whatsapp.replace(/\D/g,'');
   var promo=document.getElementById('promo-text');
@@ -250,105 +251,126 @@ async function handleOrderSubmit(event){
   ordering=false; if(btn){btn.disabled=false;btn.textContent=dine?'Send to kitchen':'Place Order';}
   if(r.error){ showToast(friendlyError(r.error),'error'); return; }
   if(!dine) saveMe({name:g('order-name'),phone:g('order-phone'),email:g('order-email'),address:g('order-address').trim()});
+  var snap=cartLines().map(function(l){return {id:Number(l.item.id),n:l.item.name,q:l.qty};});
   cart={}; saveCart(); renderCart(); closeOrderModal(); if(form.reset) form.reset(); applyModeToForm();
-  saveLastOrder({id:r.data.order_id,token:r.data.cancel_token,until:r.data.cancel_until||new Date(Date.now()+CANCEL_MS).toISOString(),total:r.data.total,table:dine?tableCode:null,mode:mode,phone:g('order-phone')||'',branch:branch.id,at:Date.now()});
-  showDone();
+  putOrder({id:r.data.order_id,token:r.data.cancel_token,until:r.data.cancel_until||new Date(Date.now()+CANCEL_MS).toISOString(),total:r.data.total,mode:mode,table:dine?tableCode:null,branch:branch.id,items:snap,at:Date.now(),status:'pending',paid:false,claimed:false,cancelled:false,phone:g('order-phone')||''});
+  renderOrdersFab(); openOrders(r.data.order_id);
 }
 
-/* ---------- my order: 2-minute cancel, then pay with M-Pesa whenever you like ---------- */
-function lastOrder(){ try{ return JSON.parse(localStorage.getItem('joto_last_order')||'null'); }catch(e){ return null; } }
-function saveLastOrder(o){ try{ localStorage.setItem('joto_last_order',JSON.stringify(o)); }catch(e){} }
+/* ---------- my orders: floating button, cancel, pay (M-Pesa prompt or QR), live status, order again ---------- */
+function mmss(n){ return Math.floor(n/60)+':'+String(n%60).padStart(2,'0'); }
+function cancelText(){ var t=Math.round(CANCEL_MS/1000), m=Math.floor(t/60), r=t%60; return (m?m+' minute'+(m>1?'s':''):'')+(m&&r?' ':'')+(r?r+' seconds':''); }
+function loadOrders(){ try{ var a=JSON.parse(localStorage.getItem('joto_orders')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function saveOrders(a){ try{ localStorage.setItem('joto_orders',JSON.stringify(a.slice(0,12))); }catch(e){} }
+function recentOrders(){ var cut=Date.now()-86400000; return loadOrders().filter(function(o){return (o.at||0)>cut;}).sort(function(x,y){return (y.at||0)-(x.at||0);}); }
+function getOrder(id){ return loadOrders().filter(function(o){return o.id===id;})[0]||null; }
+function putOrder(o){ var a=loadOrders().filter(function(x){return x.id!==o.id;}); a.unshift(o); saveOrders(a); }
 function leftSecs(o){ return Math.max(0,Math.round((Date.parse(o.until)-Date.now())/1000)); }
-function showDone(){
-  var o=lastOrder(), m=document.getElementById('done-modal'); if(!o||!m) return;
-  document.getElementById('done-title').textContent=o.cancelled?'Order cancelled':(o.paid?'Order #'+o.id+' paid':'Order #'+o.id+' received');
-  document.getElementById('done-icon').textContent=o.cancelled?'🛑':'✅';
-  document.getElementById('done-sub').textContent=(o.table?'Table '+o.table+' · ':'')+money(o.total)+(o.cancelled?'':(o.paid?' · thank you!':(o.table?' · sent to the kitchen':' · we will confirm shortly')));
-  trackStatus();
-  m.classList.add('active'); tickDone(); clearInterval(doneTimer); doneTimer=setInterval(tickDone,1000);
-}
-function tickDone(){
-  var o=lastOrder(); if(!o){ clearInterval(doneTimer); return; }
-  var left=leftSecs(o), panel=document.getElementById('done-cancel'), after=document.getElementById('done-after');
-  if(o.cancelled){ panel.classList.add('hidden'); after.classList.remove('hidden'); after.textContent='Your order has been cancelled. You can order again any time.'; hidePay(); clearInterval(doneTimer); renderOrderStrip(); return; }
-  if(left>0){
-    panel.classList.remove('hidden'); after.classList.add('hidden');
-    document.getElementById('done-timer').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
-  } else {
-    panel.classList.add('hidden'); after.classList.remove('hidden');
-    after.innerHTML=o.table?'Your order is with the kitchen. To change something, please ask a member of staff.':'Your order is being prepared. To change it, please call us on <a class="text-lantern-red underline" data-call href="tel:'+esc(String(branchPhone()).replace(/[^+\d]/g,''))+'">'+esc(branchPhone())+'</a>.';
-  }
-  renderPayBox(o,left);
-}
-async function cancelMyOrder(){
-  var o=lastOrder(); if(!o||!JOTO_READY) return;
-  if(!confirm('Cancel this order?')) return;
-  var r=await sb.rpc('cancel_order',{p_order:o.id,p_token:o.token});
-  if(r.error){ showToast(friendlyError(r.error),'error'); tickDone(); return; }
-  o.cancelled=true; saveLastOrder(o); showToast('Order cancelled','success'); showDone();
-}
-var statusTimer=null;
+function orderOwes(o){ return !o.cancelled&&!o.paid; }
+function orderActive(o){ return !o.cancelled&&o.status!=='completed'; }
+var panelOpen={}, payMsg={}, ordersTimer=null, ordersPollTimer=null, payWatch={};
 function statusText(st,o){
-  var dine=!!o.table, kind=o.mode||(dine?'dine_in':'pickup');
+  var kind=o.mode||'pickup';
   return {pending:'⏳ Waiting for the restaurant to confirm',confirmed:'👩‍🍳 Being prepared',ready:kind==='dine_in'?'🍽️ Ready, coming to your table':kind==='delivery'?'🛵 Out for delivery':'🛍️ Ready for pickup',completed:'✅ Done. Enjoy!',cancelled:'🛑 Cancelled'}[st]||'';
 }
-function trackStatus(){
-  clearInterval(statusTimer); var o=lastOrder(), el=document.getElementById('done-status'); if(!o||!el||!JOTO_READY){ if(el) el.textContent=''; return; }
-  var pull=async function(){ var cur=lastOrder(); if(!cur||cur.id!==o.id) return; var r=await sb.rpc('order_payment_status',{p_order:o.id,p_token:o.token}); if(r.error||!r.data) return;
-    if(r.data.status==='cancelled'&&!cur.cancelled){ cur.cancelled=true; saveLastOrder(cur); }
-    el.textContent=statusText(r.data.status,cur); if(r.data.status==='completed'||r.data.status==='cancelled') clearInterval(statusTimer); };
-  pull(); statusTimer=setInterval(pull,8000);
+function renderOrdersFab(){
+  var f=document.getElementById('orders-fab'); if(!f) return; var list=recentOrders();
+  if(!list.length){ f.classList.add('hidden'); return; }
+  var owes=list.filter(orderOwes), active=list.filter(orderActive), n=owes.length||active.length;
+  f.classList.remove('hidden'); f.classList.toggle('owes',owes.length>0);
+  document.getElementById('orders-fab-text').textContent=owes.length?'Pay '+money(owes.reduce(function(s,o){return s+o.total;},0)):'My orders';
+  var bd=document.getElementById('orders-fab-badge'); bd.textContent=n; bd.classList.toggle('hidden',!n);
 }
-function closeDone(){ var m=document.getElementById('done-modal'); if(m) m.classList.remove('active'); clearInterval(doneTimer); clearInterval(payPoll); clearInterval(statusTimer); renderOrderStrip(); }
-function resumeOrderWindow(){ var o=lastOrder(); if(o&&!o.cancelled&&!o.paid&&leftSecs(o)>0) showDone(); }
-
-function hidePay(){ var b=document.getElementById('pay-box'); if(b) b.classList.add('hidden'); }
-function payEnabledFor(o){ return CFG.mpesa&&o&&!o.cancelled&&!o.paid; }
-function renderPayBox(o,left){
-  var box=document.getElementById('pay-box'); if(!box) return;
-  if(o.paid){ box.classList.remove('hidden'); document.getElementById('pay-form').classList.add('hidden'); document.getElementById('pay-status').innerHTML='✅ Payment received'+(o.receipt?' · M-Pesa receipt <b>'+esc(o.receipt)+'</b>':''); return; }
-  if(!payEnabledFor(o)){ box.classList.add('hidden'); return; }
-  box.classList.remove('hidden');
-  var form=document.getElementById('pay-form'), btn=document.getElementById('pay-btn'), st=document.getElementById('pay-status');
-  if(payPoll){ return; }                        // a payment request is in progress, leave the message alone
-  form.classList.remove('hidden');
-  var ph=document.getElementById('pay-phone'); if(ph&&!ph.value) ph.value=o.phone||(currentProfile&&currentProfile.phone)||'';
-  btn.textContent='Pay '+money(o.total)+' with M-Pesa';
-  if(left>0){ btn.disabled=true; st.textContent='You can pay once the 2-minute cancel window ends.'; }
-  else { btn.disabled=false; if(!st.dataset.keep) st.textContent='Or pay when your order arrives or at the till.'; }
+function openOrders(focusId){
+  var m=document.getElementById('orders-modal'); if(!m) return; renderOrders(); m.classList.add('active');
+  clearInterval(ordersTimer); ordersTimer=setInterval(tickOrders,1000); clearInterval(ordersPollTimer); ordersPollTimer=setInterval(function(){ pollOrders(); },8000); pollOrders();
+  if(focusId){ var el=m.querySelector('[data-id="'+focusId+'"]'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start'}); }
 }
+function closeOrders(){ var m=document.getElementById('orders-modal'); if(m) m.classList.remove('active'); clearInterval(ordersTimer); clearInterval(ordersPollTimer); }
+function tickOrders(){
+  var unlock=false; document.querySelectorAll('[data-left]').forEach(function(e){ var o=getOrder(Number(e.dataset.left)); if(!o) return; var l=leftSecs(o); if(l<=0) unlock=true; else e.textContent=mmss(l); });
+  if(unlock) renderOrders();
+}
+function payAreaHTML(o,left,b){
+  var locked=left>0&&o.status==='pending', hasQr=!!b.pay_qr_url;
+  if(!CFG.mpesa&&!hasQr) return '<div class="mo-note">Pay at the restaurant or on delivery.</div>';
+  var h='<div class="mo-pay"><div class="mo-pay-title">Pay '+money(o.total)+'</div>';
+  if(locked) h+='<div class="mo-note">Payment opens in <b data-left="'+o.id+'">'+mmss(left)+'</b>, once the time to cancel is over.</div>';
+  h+='<div class="mo-pay-btns">'+(CFG.mpesa?'<button type="button" class="'+(panelOpen[o.id]==='mpesa'?'on':'')+'" '+(locked?'disabled':'')+' onclick="payPanel('+o.id+',\'mpesa\')">📱 M-Pesa prompt</button>':'')+(hasQr?'<button type="button" class="'+(panelOpen[o.id]==='qr'?'on':'')+'" '+(locked?'disabled':'')+' onclick="payPanel('+o.id+',\'qr\')">🔳 Scan QR</button>':'')+'</div>';
+  if(!locked&&panelOpen[o.id]==='mpesa'&&CFG.mpesa) h+='<div class="mo-panel"><label for="pp-'+o.id+'">M-Pesa number to charge</label><input id="pp-'+o.id+'" type="tel" inputmode="tel" value="'+esc(loadMe().phone||o.phone||'')+'" placeholder="0712 345 678"><button type="button" class="mo-go" onclick="payMpesa('+o.id+')">Send payment request</button><div class="mo-msg" id="pm-'+o.id+'" aria-live="polite">'+esc(payMsg[o.id]||'')+'</div></div>';
+  if(!locked&&panelOpen[o.id]==='qr'&&hasQr) h+='<div class="mo-panel mo-qr"><img src="'+esc(b.pay_qr_url)+'" alt="M-Pesa payment QR code"><p>Scan with the M-Pesa app and pay exactly <b>'+money(o.total)+'</b>.'+(b.pay_note?'<br>'+esc(b.pay_note):'')+'<br>Reference: <b>Order #'+o.id+'</b></p><label for="pc-'+o.id+'">M-Pesa confirmation code (optional)</label><input id="pc-'+o.id+'" type="text" maxlength="14" autocomplete="off" placeholder="e.g. QWE1R2T3Y4"><button type="button" class="mo-go" onclick="claimQr('+o.id+')">I have paid</button><div class="mo-msg" aria-live="polite">'+esc(payMsg[o.id]||'')+'</div></div>';
+  return h+'</div>';
+}
+function orderCardHTML(o){
+  var left=leftSecs(o), canCancel=!o.cancelled&&o.status==='pending'&&left>0, b=findBranch(o.branch)||{};
+  var where=o.mode==='dine_in'?'🍽️ Table '+esc(o.table):o.mode==='delivery'?'🛵 Delivery':'🛍️ Pickup';
+  var pill=o.paid?'<span class="mo-pill paid">Paid ✓'+(o.receipt?' · '+esc(o.receipt):'')+'</span>':o.claimed?'<span class="mo-pill claimed">Confirming payment…</span>':o.cancelled?'':'<span class="mo-pill unpaid">Not paid</span>';
+  var h='<div class="myorder" data-id="'+o.id+'"><div class="mo-head"><b>Order #'+o.id+'</b>'+pill+'</div>'+
+    '<div class="mo-sub">'+esc(shortName(b.name||'Joto Ramen'))+' · '+where+' · '+new Date(o.at).toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit'})+'</div>'+
+    '<div class="mo-status">'+esc(o.cancelled?'🛑 Cancelled':statusText(o.status,o))+'</div>'+
+    '<ul class="mo-items">'+(o.items||[]).map(function(i){return '<li>'+i.q+'× '+esc(i.n)+'</li>';}).join('')+'</ul><div class="mo-total"><span>Total</span><b>'+money(o.total)+'</b></div>';
+  if(canCancel) h+='<div class="mo-cancel">You can cancel for <b data-left="'+o.id+'">'+mmss(left)+'</b><button type="button" onclick="cancelOrder('+o.id+')">Cancel order</button></div>';
+  if(o.note&&orderOwes(o)&&!o.claimed) h+='<div class="mo-note warn">'+esc(o.note)+'</div>';
+  if(orderOwes(o)&&!o.claimed) h+=payAreaHTML(o,left,b);
+  if(o.claimed&&!o.paid) h+='<div class="mo-note">Thank you. The restaurant will confirm your payment in a moment.</div>';
+  if(!orderActive(o)||o.paid) h+='<div class="mo-actions"><button type="button" onclick="reorder('+o.id+')">🔁 Order again</button></div>';
+  return h+'</div>';
+}
+function renderOrders(){
+  var box=document.getElementById('orders-body'); if(!box) return; var list=recentOrders();
+  box.innerHTML=list.length?list.map(orderCardHTML).join(''):'<p class="text-center text-parchment/60 py-10">No orders yet. When you order, it shows up here so you can follow it and pay whenever you like.</p>';
+  renderOrdersFab();
+}
+function applyStatus(o,d){
+  var before=JSON.stringify([o.status,o.paid,o.claimed,o.cancelled,o.note,o.receipt]);
+  if(d.status){ o.status=d.status; if(d.status==='cancelled') o.cancelled=true; }
+  o.paid=d.payment_status==='paid'; o.claimed=d.payment_status==='claimed'; if(d.receipt) o.receipt=d.receipt; o.note=d.payment_status==='failed'?(d.note||'The payment was not completed.'):(d.payment_status==='unpaid'&&d.note?d.note:'');
+  return before!==JSON.stringify([o.status,o.paid,o.claimed,o.cancelled,o.note,o.receipt]);
+}
+async function refreshOrder(o){ if(!JOTO_READY) return false; var r=await sb.rpc('order_payment_status',{p_order:o.id,p_token:o.token}); if(r.error||!r.data) return false; var changed=applyStatus(o,r.data); if(changed) putOrder(o); return changed; }
+async function pollOrders(){
+  if(!JOTO_READY) return; var changed=false, list=recentOrders().filter(function(o){return !(o.cancelled||(o.status==='completed'&&o.paid));});
+  for(var i=0;i<list.length;i++){ if(await refreshOrder(list[i])) changed=true; }
+  if(changed){ renderOrdersFab(); var m=document.getElementById('orders-modal'); if(m&&m.classList.contains('active')) renderOrders(); }
+}
+function payPanel(id,kind){ panelOpen[id]=panelOpen[id]===kind?'':kind; payMsg[id]=''; renderOrders(); }
 async function fnError(err){ try{ var j=await err.context.json(); if(j&&j.error) return j.error; }catch(e){} return (err&&err.message)||'Something went wrong'; }
-async function payNow(){
-  var o=lastOrder(); if(!o||!JOTO_READY) return;
-  var phone=(document.getElementById('pay-phone').value||'').trim(), st=document.getElementById('pay-status'), btn=document.getElementById('pay-btn');
+async function cancelOrder(id){
+  var o=getOrder(id); if(!o||!JOTO_READY) return; if(!confirm('Cancel this order?')) return;
+  var r=await sb.rpc('cancel_order',{p_order:o.id,p_token:o.token});
+  if(r.error){ showToast(friendlyError(r.error),'error'); renderOrders(); return; }
+  o.cancelled=true; o.status='cancelled'; putOrder(o); showToast('Order cancelled','success'); renderOrders();
+}
+async function payMpesa(id){
+  var o=getOrder(id); if(!o||!JOTO_READY) return; var inp=document.getElementById('pp-'+id), phone=(inp?inp.value:'').trim();
   if(!phone){ showToast('Enter the Safaricom number to charge','error'); return; }
-  btn.disabled=true; st.dataset.keep='1'; st.textContent='Sending the request to your phone…';
+  var me=loadMe(); me.phone=phone; saveMe(me); payMsg[id]='Sending the request to your phone…'; var msg=document.getElementById('pm-'+id); if(msg) msg.textContent=payMsg[id];
   var r=await sb.functions.invoke('mpesa-stk-push',{body:{order_id:o.id,token:o.token,phone:phone}});
-  if(r.error){ st.textContent=await fnError(r.error); btn.disabled=false; return; }
-  if(r.data&&r.data.already){ o.paid=true; saveLastOrder(o); showDone(); return; }
-  st.textContent='Check your phone and enter your M-Pesa PIN to pay '+money(o.total)+'.';
-  var tries=0; clearInterval(payPoll);
-  payPoll=setInterval(async function(){
-    tries++;
-    var s=await sb.rpc('order_payment_status',{p_order:o.id,p_token:o.token});
-    var d=s.data||{};
-    if(d.payment_status==='paid'){ clearInterval(payPoll); payPoll=null; o.paid=true; o.receipt=d.receipt||''; saveLastOrder(o); delete st.dataset.keep; showDone(); renderOrderStrip(); showToast('Payment received. Thank you!','success'); }
-    else if(d.payment_status==='failed'){ clearInterval(payPoll); payPoll=null; st.textContent=(d.note||'The payment was not completed')+'. You can try again.'; btn.disabled=false; }
-    else if(tries>=40){ clearInterval(payPoll); payPoll=null; st.textContent='We have not received the payment yet. If you paid, it will show here shortly. You can also try again.'; btn.disabled=false; }
+  if(r.error){ payMsg[id]=await fnError(r.error); renderOrders(); return; }
+  if(r.data&&r.data.already){ o.paid=true; putOrder(o); renderOrders(); return; }
+  payMsg[id]='Check your phone and enter your M-Pesa PIN to pay '+money(o.total)+'.'; renderOrders();
+  clearInterval(payWatch[id]); var tries=0;
+  payWatch[id]=setInterval(async function(){
+    tries++; var cur=getOrder(id); if(!cur){ clearInterval(payWatch[id]); return; }
+    await refreshOrder(cur); renderOrdersFab();
+    if(cur.paid){ clearInterval(payWatch[id]); payMsg[id]=''; renderOrders(); showToast('Payment received. Thank you!','success'); }
+    else if(cur.note&&!cur.claimed&&tries>1){ clearInterval(payWatch[id]); payMsg[id]=cur.note+' You can try again.'; renderOrders(); }
+    else if(tries>=40){ clearInterval(payWatch[id]); payMsg[id]='We have not received the payment yet. If you paid, it will appear here shortly.'; renderOrders(); }
   },3000);
 }
-function renderOrderStrip(){
-  var s=document.getElementById('order-strip'); if(!s) return;
-  var o=lastOrder(), show=!!(o&&!tableMode&&!o.cancelled&&!o.paid&&CFG.mpesa&&leftSecs(o)===0&&(Date.now()-(o.at||Date.parse(o.until)))<86400000);
-  s.classList.toggle('hidden',!show);
-  if(show) document.getElementById('order-strip-text').textContent='Order #'+o.id+' · '+money(o.total)+' · not paid yet';
+async function claimQr(id){
+  var o=getOrder(id); if(!o||!JOTO_READY) return; var inp=document.getElementById('pc-'+id);
+  var r=await sb.rpc('claim_payment',{p_order:o.id,p_token:o.token,p_code:inp?inp.value:''});
+  if(r.error){ payMsg[id]=friendlyError(r.error); renderOrders(); return; }
+  o.claimed=true; o.note=''; putOrder(o); panelOpen[id]=''; payMsg[id]=''; showToast('Thank you. The restaurant will confirm your payment.','success'); renderOrders();
 }
-async function syncLastOrder(){
-  var o=lastOrder(); if(!o||o.cancelled||o.paid||!JOTO_READY) return;
-  var r=await sb.rpc('order_payment_status',{p_order:o.id,p_token:o.token});
-  if(r.error||!r.data) return;
-  if(r.data.status==='cancelled'){ o.cancelled=true; saveLastOrder(o); }
-  else if(r.data.payment_status==='paid'){ o.paid=true; o.receipt=r.data.receipt||''; saveLastOrder(o); }
+function reorder(id){
+  var o=getOrder(id); if(!o) return; var added=0, skipped=0;
+  (o.items||[]).forEach(function(i){ var it=menuItems.find(function(m){return m.id===i.id;}); if(it&&servedHere(it)){ cart[it.id]=Math.min((cart[it.id]||0)+i.q,50); added++; } else skipped++; });
+  saveCart(); renderCart(); closeOrders();
+  if(!added){ showToast('Those dishes are not available right now','error'); return; }
+  if(skipped) showToast(skipped+' dish'+(skipped>1?'es were':' was')+' not available and left out','info');
+  toggleCart();
 }
 
 /* ---------- how the customer is served: dine in (table number), pickup or delivery ---------- */
@@ -591,14 +613,14 @@ async function init(){
   var ot=document.getElementById('order-type'); if(ot) ot.addEventListener('change',renderCart);
   var ticking=false;
   window.addEventListener('scroll',function(){ if(ticking) return; ticking=true; requestAnimationFrame(function(){ var n=document.getElementById('navbar'); if(n) n.classList.toggle('scrolled',window.scrollY>50); updateBottomNav(); ticking=false; }); },{passive:true});
-  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeMore(); closeOrderModal(); closeLoginModal(); closeLightbox(); closeBranchModal(); closeModeModal(); } });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeMore(); closeOrderModal(); closeLoginModal(); closeLightbox(); closeBranchModal(); closeModeModal(); closeOrders(); } });
   if(!JOTO_READY) console.warn('Supabase is not configured: edit public/config.js. Showing the built-in menu only.');
   await Promise.all([loadMenu(),loadGallery(),loadReviews(),loadSettings(),loadLocations(),loadEvents()]);
   var want=''; try{ want=new URLSearchParams(window.JOTO_QS!==undefined?window.JOTO_QS:location.search).get('b')||localStorage.getItem('joto_branch')||''; }catch(e){}
   var b=findBranch(want); if(b) branch=b;
   if(!branch&&locationsList.length===1) branch=locationsList[0];
   renderBranchUI(); renderModeUI(); initScrollAnimations();
-  await syncLastOrder(); renderOrderStrip(); resumeOrderWindow();
+  renderOrdersFab(); pollOrders();
   if(!branch) openBranchModal(); else if(!mode&&!tableMode) openModeModal();
   if(JOTO_READY){
     var s=await sb.auth.getSession(); await refreshUser(s.data.session);

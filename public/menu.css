@@ -98,3 +98,32 @@
 .ctx-act{background:rgba(232,69,69,.14);border-color:rgba(232,69,69,.45)}
 .order-mode-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:#F5ECD7;font-weight:600}
 .order-mode-line button{background:none;border:0;color:#C9A84C;font-weight:600;cursor:pointer;text-decoration:underline}
+
+/* floating "My orders" button + orders sheet */
+.orders-fab{position:fixed;right:14px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:80;display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:999px;background:#232323;color:#F5ECD7;border:1px solid rgba(201,168,76,.5);box-shadow:0 10px 28px rgba(0,0,0,.55);font-weight:700;font-size:14px;cursor:pointer;transition:transform .15s}
+.orders-fab:active{transform:scale(.95)}.orders-fab.owes{background:#16a34a;border-color:#22c55e;color:#fff;animation:fabPulse 2.4s ease-in-out 2}
+.orders-fab .fab-ico{font-size:18px}.fab-badge{min-width:20px;height:20px;border-radius:10px;background:#E84545;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+@keyframes fabPulse{0%,100%{box-shadow:0 10px 28px rgba(0,0,0,.55)}50%{box-shadow:0 0 0 8px rgba(34,197,94,.25),0 10px 28px rgba(0,0,0,.55)}}
+@media(min-width:1024px){.orders-fab{right:24px;bottom:96px}}
+.table-mode .orders-fab{bottom:calc(150px + env(safe-area-inset-bottom))}
+.myorder{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;text-align:left}
+.mo-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#F5ECD7}.mo-head b{font-size:1.05rem}
+.mo-pill{font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 10px;background:rgba(255,255,255,.1);color:#ddd}
+.mo-pill.paid{background:rgba(63,182,122,.2);color:#6fe3a8}.mo-pill.unpaid{background:rgba(232,69,69,.18);color:#ff8f8f}.mo-pill.claimed{background:rgba(201,168,76,.2);color:#e6c36a}
+.mo-sub{color:rgba(245,236,215,.6);font-size:.82rem;margin-top:2px}.mo-status{color:#C9A84C;font-weight:700;margin:8px 0 6px}
+.mo-items{list-style:none;margin:0;padding:8px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);color:rgba(245,236,215,.85);font-size:.9rem}.mo-items li{padding:2px 0}
+.mo-total{display:flex;justify-content:space-between;margin-top:8px;color:#F5ECD7}.mo-total b{color:#E84545;font-size:1.1rem}
+.mo-cancel{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(232,69,69,.1);color:#F5ECD7;font-size:.9rem}
+.mo-cancel button,.mo-actions button{border:1px solid #E84545;color:#E84545;background:none;border-radius:10px;padding:7px 12px;font-weight:700;cursor:pointer}
+.mo-actions{margin-top:10px}.mo-actions button{border-color:#C9A84C;color:#C9A84C;width:100%;padding:10px}
+.mo-note{margin-top:10px;font-size:.85rem;color:rgba(245,236,215,.75)}.mo-note.warn{color:#ff9a90}
+.mo-pay{margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)}
+.mo-pay-title{font-weight:800;color:#F5ECD7;margin-bottom:8px}
+.mo-pay-btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.mo-pay-btns button{padding:11px 8px;border-radius:12px;background:#2a2a2a;border:1px solid rgba(255,255,255,.18);color:#F5ECD7;font-weight:700;cursor:pointer}
+.mo-pay-btns button.on{border-color:#22c55e;background:rgba(34,197,94,.14)}.mo-pay-btns button:disabled{opacity:.45;cursor:not-allowed}
+.mo-panel{margin-top:10px;display:flex;flex-direction:column;gap:8px}.mo-panel label{font-size:.82rem;color:rgba(245,236,215,.75)}
+.mo-panel input{padding:11px 12px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#F5ECD7}
+.mo-go{padding:12px;border:0;border-radius:10px;background:#16a34a;color:#fff;font-weight:800;cursor:pointer}
+.mo-msg{font-size:.85rem;color:#C9A84C;min-height:1em}
+.mo-qr img{width:100%;max-width:260px;margin:0 auto;background:#fff;padding:10px;border-radius:14px}.mo-qr p{margin:0;text-align:center;color:rgba(245,236,215,.85);font-size:.88rem}

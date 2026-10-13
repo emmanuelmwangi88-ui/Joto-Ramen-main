@@ -27,7 +27,9 @@ Deno.serve(async (req: Request) => {
     if (!order || order.cancel_token !== token) return json({ error: "Order not found" }, 404);
     if (order.status === "cancelled") return json({ error: "This order was cancelled." }, 400);
     if (order.payment_status === "paid") return json({ ok: true, already: true });
-    if (order.status === "pending" && order.source !== "waiter" && Date.now() - Date.parse(order.created_at) < 120_000) return json({ error: "Please wait until the 2-minute cancel window ends, then pay." }, 400);
+    const { data: st } = await sb.from("settings").select("value").eq("key", "cancel_seconds").maybeSingle();
+    const cancelMs = Math.min(300, Math.max(15, parseInt(st?.value ?? "80", 10) || 80)) * 1000;   // same setting the database uses
+    if (order.status === "pending" && Date.now() - Date.parse(order.created_at) < cancelMs) return json({ error: "Please wait until the cancel window ends, then pay." }, 400);
     if (order.last_stk_at && Date.now() - Date.parse(order.last_stk_at) < 45_000) return json({ error: "A payment request was just sent. Please wait a moment before trying again." }, 429);
     if (!(order.total >= 1)) return json({ error: "Invalid order total" }, 400);
 

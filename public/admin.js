@@ -1,9 +1,9 @@
 /* JOTO RAMEN: admin panel (multi-branch). Supabase Auth + Row Level Security; no passwords in this file. */
 (function(){
 'use strict';
-var CANCEL_MS=window.JOTO_CANCEL_MS||120000; /* the customer's cancel window; a demo can shorten it */
+var CANCEL_MS=window.JOTO_CANCEL_MS||80000; /* the customer's cancel window; a demo can shorten it */
 var S={me:null,menu:[],orders:[],res:[],events:[],locs:[],reviews:[],gallery:[],settings:{},reqs:[],pays:[],activity:[],team:[],users:[],
-  branch:'all',view:'dashboard',f:{order:'all',res:'all',rev:'all',otype:'all'},timer:null,tick:null,seen:null,seenReq:null,seenPay:null,silenced:false};
+  branch:'all',view:'dashboard',f:{order:'all',res:'all',rev:'all',otype:'all'},timer:null,tick:null,seen:null,seenReq:null,seenPay:null,seenClaim:new Set()};
 var $=function(id){return document.getElementById(id);};
 var val=function(id){var e=$(id);return e?e.value.trim():'';};
 var CATS={ramen:'Ramen',starters:'Starters',sides:'Sides',drinks:'Drinks',desserts:'Desserts',toppings:'Toppings'};
@@ -44,12 +44,11 @@ async function verifyAdmin(user){
   if(d&&d.is_manager&&d.is_active&&d.location_id){ S.me={id:user.id,email:user.email,name:d.name,role:'manager',loc:d.location_id}; return true; }
   return false;
 }
-function showLogin(){ clearInterval(S.timer); clearInterval(S.tick); Alerts.stopReminder(); $('app').classList.add('hidden'); $('login-screen').classList.remove('hidden'); }
+function showLogin(){ clearInterval(S.timer); clearInterval(S.tick); $('app').classList.add('hidden'); $('login-screen').classList.remove('hidden'); }
 function start(){
   $('login-screen').classList.add('hidden'); $('app').classList.remove('hidden'); document.body.classList.toggle('role-manager',S.me.role==='manager'); if(S.me.role==='manager'){ var nm=document.querySelector('.nav[data-view="menu"]'), nl=document.querySelector('.nav[data-view="locations"]'); if(nm) nm.textContent='🍜 Dishes served here'; if(nl) nl.textContent='📍 My restaurant'; TITLES.menu='Dishes served here'; TITLES.locations='My restaurant'; } $('who').textContent=S.me.email; go(S.me.role==='manager'?'orders':'dashboard'); refresh();
   clearInterval(S.timer); S.timer=setInterval(function(){ refresh(true); },window.JOTO_POLL_MS||15000);
   clearInterval(S.tick); S.tick=setInterval(tickCountdowns,1000);
-  Alerts.startReminder(function(){ return !S.silenced&&S.orders.some(function(o){return o.status==='pending';}); },'order',30000);
   alertBtn(); Alerts.askPermission().then(notifState);
   try{ sb.channel('admin-live').on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(){refresh(true);}).on('postgres_changes',{event:'*',schema:'public',table:'service_requests'},function(){refresh(true);}).on('postgres_changes',{event:'*',schema:'public',table:'payments'},function(){refresh(true);}).subscribe(); }catch(e){}
 }
@@ -89,7 +88,7 @@ async function refresh(quiet){
   S.menu=q[0].data||S.menu; S.orders=q[1].data||S.orders; S.res=q[2].data||S.res; S.events=q[3].data||S.events; S.locs=q[4].data||S.locs;
   S.reviews=q[5].data||S.reviews; S.gallery=q[6].data||S.gallery;
   if(S.me.role==='manager'){ S.locs=S.locs.filter(function(l){return String(l.id)===String(S.me.loc);}); S.branch=String(S.me.loc); var mine=S.locs[0]; $('rolebar').textContent='You are the manager of '+(mine?mine.name:'your restaurant')+'. You only see this restaurant: its orders, reviews, reservations, payments and staff.'; }
-  if(q[7].data){ S.settings={}; q[7].data.forEach(function(x){S.settings[x.key]=x.value;}); }
+  if(q[7].data){ S.settings={}; q[7].data.forEach(function(x){S.settings[x.key]=x.value;}); if(!window.JOTO_CANCEL_MS&&S.settings.cancel_seconds) CANCEL_MS=Math.min(300,Math.max(15,parseInt(S.settings.cancel_seconds,10)||80))*1000; }
   if(q[8]&&q[8].data) S.reqs=q[8].data; if(q[9]&&q[9].data) S.pays=q[9].data;
   fillBranchSelects(); detect();
   render();
@@ -151,6 +150,9 @@ function rDash(){
   var tabs=Object.keys(open).map(function(k){return open[k];});
   h+='<div class="card"><h3>Open tables</h3>'+(tabs.length?tabs.map(function(t){ var rdy=t.status.indexOf('ready')!==-1;
     return '<div class="row"><div class="grow"><div class="name">Table '+esc(t.table)+(S.branch==='all'?' <span class="tag">'+esc(shortLoc(t.loc))+'</span>':'')+(rdy?' <span class="pill online">ready to serve</span>':'')+'</div><div class="meta">'+t.n+' order'+(t.n===1?'':'s')+' · bill '+money(t.total)+'</div></div><button class="btn sm good" data-act="pay-table" data-table="'+esc(t.table)+'" data-loc="'+t.loc+'">Mark table paid</button></div>';}).join(''):'<div class="empty">No open tables.</div>')+'</div>';
+  var dish={}; todays.forEach(function(o){ (o.order_items||[]).forEach(function(i){ dish[i.name]=(dish[i.name]||0)+i.quantity; }); });
+  var top=Object.keys(dish).map(function(k){return [k,dish[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  h+='<div class="card"><h3>Top dishes today</h3>'+(top.length?top.map(function(t,i){ return '<div class="row"><span class="ico">'+(i+1)+'</span><div class="grow name">'+esc(t[0])+'</div><b>'+t[1]+'×</b></div>'; }).join(''):'<div class="empty">No orders yet today.</div>')+'</div>';
   h+='<div class="grid g2"><div class="card"><h3>Reservations waiting</h3>'+(pr.length?pr.slice(0,5).map(function(r){
     return '<div class="row"><div class="grow"><div class="name">'+esc(r.name)+' · '+r.guests+' guests</div><div class="meta">'+fmtDate(r.date)+' '+esc(String(r.time).slice(0,5))+' · '+esc(r.location_id?shortLoc(r.location_id):r.location)+'</div></div><button class="btn sm good" data-act="res-status" data-id="'+r.id+'" data-s="confirmed">Confirm</button></div>';}).join(''):'<div class="empty">None</div>')+'</div>'+
    '<div class="card"><h3>Reviews to approve</h3>'+(pv.length?pv.slice(0,5).map(function(r){
@@ -183,9 +185,10 @@ function rOrders(){
       '<div class="meta" style="color:var(--muted)">'+new Date(o.created_at).toLocaleString('en-KE')+'</div></div><div style="text-align:right"><div style="font-size:1.3rem;font-weight:700">'+money(o.total)+'</div>'+(pay?'<div class="meta" style="color:var(--green)">'+esc(pay)+'</div>':'')+'</div></div>'+
       '<p style="margin:10px 0 4px"><b>'+esc(o.name)+'</b>'+(o.phone?' · <a href="tel:'+esc(String(o.phone).replace(/[^+\d]/g,''))+'">'+esc(o.phone)+'</a>':'')+(o.email?' · '+esc(o.email):'')+'</p>'+
       '<p class="items" style="margin:0">'+items+'</p>'+(dine?'':'<p class="items" style="margin:4px 0">'+esc(capitalize(o.order_type))+(o.address?' to '+esc(o.address):'')+' · subtotal '+money(o.subtotal)+(o.delivery_fee?' + delivery '+money(o.delivery_fee):'')+'</p>')+
-      (o.notes?'<p class="items" style="margin:4px 0">Note: '+esc(o.notes)+'</p>':'')+(o.payment_note?'<p class="items" style="margin:4px 0;color:#ff9a90">Payment: '+esc(o.payment_note)+'</p>':'')+(o.status==='cancelled'&&o.cancelled_by?'<p class="items" style="margin:4px 0">Cancelled by '+esc(o.cancelled_by)+'</p>':'')+
+      (o.notes?'<p class="items" style="margin:4px 0">Note: '+esc(o.notes)+'</p>':'')+(o.payment_status==='claimed'?'<p class="items" style="margin:4px 0;color:var(--gold)">💳 Customer says they paid by QR'+(o.payment_code?' · M-Pesa code <b>'+esc(o.payment_code)+'</b>':'')+'. Check your M-Pesa statement, then confirm.</p>':'')+(o.payment_note&&o.payment_status!=='claimed'?'<p class="items" style="margin:4px 0;color:#ff9a90">Payment: '+esc(o.payment_note)+'</p>':'')+(o.status==='cancelled'&&o.cancelled_by?'<p class="items" style="margin:4px 0">Cancelled by '+esc(o.cancelled_by)+'</p>':'')+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+btns+(canCancel?'<button class="btn sm danger" data-act="order-status" data-id="'+o.id+'" data-s="cancelled">Cancel order</button>':'')+
-      (o.payment_status!=='paid'&&o.status!=='cancelled'?'<button class="btn sm" data-act="order-paid" data-id="'+o.id+'">Mark as paid</button>':'')+
+      (o.payment_status==='claimed'&&o.status!=='cancelled'?'<button class="btn sm good" data-act="pay-confirm" data-id="'+o.id+'">✓ Payment received</button><button class="btn sm danger" data-act="pay-reject" data-id="'+o.id+'">✗ Not received</button>':'')+
+      (o.payment_status!=='paid'&&o.payment_status!=='claimed'&&o.status!=='cancelled'?'<button class="btn sm" data-act="order-paid" data-id="'+o.id+'">Mark as paid</button>':'')+
       (o.phone&&o.order_type!=='dine_in'?'<a class="btn sm" href="'+esc(waLink(o))+'" target="_blank" rel="noopener" data-act="wa">💬 WhatsApp</a>':'')+
       '<button class="btn sm" data-act="print-order" data-id="'+o.id+'">🖨 Print</button>'+(S.me.role==='owner'?'<button class="btn sm danger" data-act="order-del" data-id="'+o.id+'">Delete</button>':'')+'</div></div>';}).join(''):'<div class="card empty">No orders here yet.</div>';
 }
@@ -285,11 +288,28 @@ function menuForm(it){
   $('d-branches').innerHTML=S.locs.map(function(l){ return '<label><input type="checkbox" data-branch="'+l.id+'"'+(off.indexOf(String(l.id))===-1?' checked':'')+'> '+esc(shortLoc(l.id))+'</label>'; }).join('');
   open('m-dish');
 }
+var MAX_UPLOAD=50*1024*1024;   /* 50 MB: the largest file Supabase accepts on the free plan */
+/* Big camera photos are scaled down in the browser first (longest side 2000 px), so a 30 MB photo becomes a few hundred KB and the site stays fast. */
+async function shrinkImage(file,maxSide,asPng){
+  try{
+    if(!window.createImageBitmap) return null;
+    var bmp=await createImageBitmap(file,{imageOrientation:'from-image'});
+    var scale=Math.min(1,maxSide/Math.max(bmp.width,bmp.height)), w=Math.max(1,Math.round(bmp.width*scale)), h=Math.max(1,Math.round(bmp.height*scale));
+    var c=document.createElement('canvas'); c.width=w; c.height=h; var x=c.getContext('2d');
+    if(!asPng){ x.fillStyle='#fff'; x.fillRect(0,0,w,h); } x.drawImage(bmp,0,0,w,h); if(bmp.close) bmp.close();
+    var blob=await new Promise(function(res){ c.toBlob(res,asPng?'image/png':'image/jpeg',0.86); });
+    if(blob&&blob.size) return {blob:blob,ext:asPng?'png':'jpg'};
+  }catch(e){}
+  return null;
+}
 async function uploadImage(file,folder){
-  if(file.size>5*1024*1024) throw new Error('Image must be under 5 MB');
-  var ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  if(file.size>MAX_UPLOAD) throw new Error('This photo is '+Math.round(file.size/1048576)+' MB. The largest allowed is 50 MB.');
+  if(!/^image\//.test(file.type)&&!/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)) throw new Error('Please choose a photo (JPG, PNG, WebP, GIF or AVIF).');
+  if(file.size>5*1024*1024) showToast('Optimising your '+Math.round(file.size/1048576)+' MB photo…','info');
+  var small=file.type==='image/gif'?null:await shrinkImage(file,folder==='pay'?1400:2000,folder==='pay');
+  var blob=small?small.blob:file, ext=small?small.ext:((file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg');
   var path=folder+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
-  var r=await sb.storage.from('media').upload(path,file,{cacheControl:'31536000',upsert:false}); if(r.error) throw r.error;
+  var r=await sb.storage.from('media').upload(path,blob,{cacheControl:'31536000',upsert:false,contentType:small?blob.type:(file.type||undefined)}); if(r.error) throw r.error;
   return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
 }
 async function imageFrom(fileId,urlId,folder){ var f=$(fileId).files[0]; if(f) return await uploadImage(f,folder); return val(urlId)||null; }
@@ -355,11 +375,12 @@ function rLocs(){
 function locForm(it){
   it=it||{}; $('loc-title').textContent=it.id?'Edit branch':'Add branch'; $('l-id').value=it.id||'';
   $('l-name').value=it.name||''; $('l-addr').value=it.address||''; $('l-phone').value=it.phone||''; $('l-order').value=it.sort_order===undefined?(S.locs.length+1):it.sort_order; $('l-tables').value=it.table_count===undefined?20:it.table_count;
-  $('l-hours').value=it.hours||''; $('l-note').value=it.note||''; $('l-map').value=it.map_query||''; $('l-active').checked=it.is_active!==false; $('l-name').readOnly=isMgr()&&!!it.id; open('m-loc');
+  $('l-hours').value=it.hours||''; $('l-note').value=it.note||''; $('l-map').value=it.map_query||''; $('l-active').checked=it.is_active!==false; $('l-name').readOnly=isMgr()&&!!it.id; $('l-payqr-url').value=it.pay_qr_url||''; $('l-payqr-file').value=''; prev('l-payqr-prev',it.pay_qr_url); $('l-paynote').value=it.pay_note||''; open('m-loc');
 }
 async function saveLoc(e){
   e.preventDefault(); if(isMgr()&&!$('l-id').value){ showToast('Only the owner can add a restaurant','error'); return; }
   var name=val('l-name'), row={name:name,address:val('l-addr'),phone:val('l-phone')||null,sort_order:parseInt($('l-order').value,10)||0,table_count:Math.min(60,Math.max(0,parseInt($('l-tables').value,10)||0)),hours:$('l-hours').value.trim()||null,note:val('l-note')||null,map_query:val('l-map')||null,is_active:$('l-active').checked};
+  try{ row.pay_qr_url=await imageFrom('l-payqr-file','l-payqr-url','pay'); }catch(err){ fail(err); return; } row.pay_note=val('l-paynote')||null;
   var id=$('l-id').value; if(!id) row.slug=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||('branch-'+Date.now());
   if(await run(id?sb.from('locations').update(row).eq('id',id):sb.from('locations').insert(row),id?'Branch saved':'Branch added')){ closeAll(); refresh(true); }
 }
@@ -433,32 +454,35 @@ async function staffCall(body,okMsg){ var r=await sb.functions.invoke('staff-adm
 /* ---------- order alerts ---------- */
 function describe(o){ return (o.order_type==='dine_in'?'Table '+o.table_label:capitalize(o.order_type))+' · '+shortLoc(o.location_id)+' · '+money(o.total); }
 function detect(){
-  if(S.seen===null){ S.seen=new Set(S.orders.map(function(o){return o.id;})); S.seenReq=new Set(S.reqs.map(function(r){return r.id;})); S.seenPay=new Set(S.pays.filter(function(p){return p.status==='success';}).map(function(p){return p.id;})); alertBar(); return; }
+  if(S.seen===null){ S.seenClaim=new Set(S.orders.filter(function(o){return o.payment_status==='claimed';}).map(function(o){return o.id;})); S.seen=new Set(S.orders.map(function(o){return o.id;})); S.seenReq=new Set(S.reqs.map(function(r){return r.id;})); S.seenPay=new Set(S.pays.filter(function(p){return p.status==='success';}).map(function(p){return p.id;})); alertBar(); return; }
   var fresh=S.orders.filter(function(o){return !S.seen.has(o.id)&&o.status==='pending';}); S.orders.forEach(function(o){S.seen.add(o.id);});
-  if(fresh.length){ S.silenced=false; var o=fresh[0];
+  if(fresh.length){ var o=fresh[0];
     Alerts.alert({kind:'order',title:fresh.length>1?fresh.length+' new orders':'New order #'+o.id,body:describe(o),tag:'o'+o.id,url:'admin.html'});
     showToast('🔔 '+(fresh.length>1?fresh.length+' new orders':'New order #'+o.id+': '+describe(o)),'info'); }
   var fr=S.reqs.filter(function(r){return !S.seenReq.has(r.id);}); S.reqs.forEach(function(r){S.seenReq.add(r.id);});
   if(fr.length) Alerts.alert({kind:'request',title:fr[0].kind==='bill'?'Bill requested':'Table needs a waiter',body:'Table '+fr[0].table_label+' · '+shortLoc(fr[0].location_id),tag:'s'+fr[0].id,url:'admin.html'});
+  var cc=S.orders.filter(function(o){return o.payment_status==='claimed'&&!S.seenClaim.has(o.id);}); S.orders.forEach(function(o){ if(o.payment_status==='claimed') S.seenClaim.add(o.id); });
+  if(cc.length){ Alerts.alert({kind:'order',title:'Payment to confirm',body:'Order #'+cc[0].id+' · '+money(cc[0].total),tag:'c'+cc[0].id,url:'admin.html'}); showToast('💳 Order #'+cc[0].id+': customer says they paid'+(cc[0].payment_code?' (code '+cc[0].payment_code+')':'')+'. Check your M-Pesa and confirm.','info'); }
   var fp=S.pays.filter(function(p){return p.status==='success'&&!S.seenPay.has(p.id);}); S.pays.forEach(function(p){ if(p.status==='success') S.seenPay.add(p.id); });
-  if(fp.length&&fp[0].method==='mpesa') { Alerts.chime('ready'); showToast('💳 M-Pesa payment received: '+money(fp[0].amount)+(fp[0].mpesa_receipt?' ('+fp[0].mpesa_receipt+')':''),'success'); }
+  if(fp.length&&fp[0].method==='mpesa') { showToast('💳 M-Pesa payment received: '+money(fp[0].amount)+(fp[0].mpesa_receipt?' ('+fp[0].mpesa_receipt+')':''),'success'); }
   alertBar();
 }
 function alertBar(){
   var pend=S.orders.filter(inBr).filter(function(o){return o.status==='pending';}).length, bar=$('alert-bar'); if(!bar) return;
-  var parts=[]; if(pend) parts.push('🔔 '+pend+' order'+(pend===1?'':'s')+' waiting'); var rq=S.reqs.filter(inBr).length; if(rq) parts.push('🙋 '+rq+' table request'+(rq===1?'':'s'));
+  var parts=[]; if(pend) parts.push('🔔 '+pend+' order'+(pend===1?'':'s')+' waiting'); var cl=S.orders.filter(inBr).filter(function(o){return o.payment_status==='claimed'&&o.status!=='cancelled';}).length; if(cl) parts.push('💳 '+cl+' payment'+(cl===1?'':'s')+' to confirm'); var rq=S.reqs.filter(inBr).length; if(rq) parts.push('🙋 '+rq+' table request'+(rq===1?'':'s'));
   bar.classList.toggle('hidden',!parts.length); $('alert-text').textContent=parts.join('   ·   ');
 }
 function alertBtn(){ var b=$('alerts-btn'); if(b) b.textContent=Alerts.soundOn?'🔔 Alerts on':'🔕 Alerts off'; }
 function notifState(){ var e=$('notif-state'); if(!e) return; var p=Alerts.permission(); e.textContent=p==='granted'?'Notifications are allowed on this device.':p==='denied'?'Notifications are blocked. Allow them in your browser or phone settings for this site.':p==='unsupported'?'This browser does not support notifications. The sound and the alert bar still work.':'Notifications are not allowed yet. Tap "Allow notifications".'; }
 
 /* ---------- reviews/reservations/others helpers + settings ---------- */
-var SMAP={'s-name':'restaurant_name','s-phone':'phone','s-whatsapp':'whatsapp','s-email':'email','s-instagram':'instagram','s-facebook':'facebook','s-min':'min_order','s-fee':'delivery_fee','s-promo':'promo_text'};
+var SMAP={'s-name':'restaurant_name','s-phone':'phone','s-whatsapp':'whatsapp','s-email':'email','s-instagram':'instagram','s-facebook':'facebook','s-min':'min_order','s-fee':'delivery_fee','s-promo':'promo_text','s-cancel':'cancel_seconds'};
 function rSettings(){ notifState(); Object.keys(SMAP).forEach(function(id){ var e=$(id); if(e&&document.activeElement!==e) e.value=S.settings[SMAP[id]]||''; }); $('s-mpesa').checked=S.settings.mpesa_enabled==='1'; }
 async function saveSettings(ids,msg){
   var rows=ids.map(function(id){ return {key:SMAP[id],value:$(id).value.trim()}; });
   var bad=rows.find(function(r){return (r.key==='min_order'||r.key==='delivery_fee')&&!(parseInt(r.value,10)>=0);});
   if(bad){ showToast('Enter a number for '+bad.key.replace('_',' '),'error'); return; }
+  var cw=rows.find(function(r){return r.key==='cancel_seconds';}); if(cw){ var n=parseInt(cw.value,10); if(!(n>=15&&n<=300)){ showToast('The cancel window must be between 15 and 300 seconds','error'); return; } cw.value=String(n); }
   if(ids.indexOf('s-phone')!==-1&&!$('s-whatsapp').value.trim()){ var w=$('s-phone').value.replace(/\D/g,''); rows.forEach(function(r){ if(r.key==='whatsapp') r.value=w; }); }
   if(await run(sb.from('settings').upsert(rows,{onConflict:'key'}),msg)){ rows.forEach(function(r){S.settings[r.key]=r.value;}); }
 }
@@ -475,14 +499,13 @@ var ACT={
   'loc-new':function(){locForm();}, 'loc-edit':function(id){locForm(byId(S.locs,id));}, 'loc-del':locDel,
   'rev-approve':revApprove, 'rev-del':revDel, 'gal-new':function(){ $('g-file').value=''; $('g-url').value=''; $('g-alt').value=''; prev('g-prev',null); $('g-branch').innerHTML=branchOptions(isMgr()?S.me.loc:(S.branch!=='all'?S.branch:''),true,'All branches'); open('m-gal'); }, 'gal-del':galDel,
   'save-contact':function(){saveSettings(['s-name','s-phone','s-whatsapp','s-email','s-instagram','s-facebook'],'Contact details saved');},
-  'save-order':function(){saveSettings(['s-min','s-fee','s-promo'],'Ordering settings saved');}, 'save-mpesa':saveMpesa, 'save-password':savePassword,
-  alerts:function(){ Alerts.setSound(!Alerts.soundOn); alertBtn(); Alerts.askPermission().then(notifState); if(Alerts.soundOn) Alerts.chime('ready'); },
-  silence:function(){ S.silenced=true; Alerts.stopFlash(); showToast('Silenced until the next new order','info'); },
+  'save-order':function(){saveSettings(['s-min','s-fee','s-cancel','s-promo'],'Ordering settings saved');}, 'save-mpesa':saveMpesa, 'save-password':savePassword,
+  alerts:function(){ Alerts.setSound(!Alerts.soundOn); alertBtn(); Alerts.askPermission().then(notifState); if(Alerts.soundOn) Alerts.chime(); },
   'test-alert':function(){ Alerts.alert({kind:'order',title:'Test alert',body:'This is how a new order will sound',tag:'test'}); },
   'enable-notif':function(){ Alerts.askPermission().then(notifState); },
   'req-done':async function(id){ var r=await sb.rpc('resolve_service',{p_id:Number(id)}); if(r.error){ fail(r.error); return; } refresh(true); },
   'qr-gen':genQR, 'qr-print':function(){ if(!$('qr-grid').children.length) genQR(); setTimeout(function(){ window.print(); },400); }, 'save-tables':saveTables,
-  'mg-gen':function(){genPassword('mg-pass');}, 'mg-add':managerAdd, 'print-order':function(id){ printOrder(id); }, 'pay-table':function(id,el){ payTable(el.dataset.table,el.dataset.loc); }, 'otype':function(id){ S.f.otype=id; rOrders(); },
+  'mg-gen':function(){genPassword('mg-pass');}, 'mg-add':managerAdd, 'print-order':function(id){ printOrder(id); }, 'pay-confirm':async function(id){ if(await run(sb.rpc('record_payment',{p_order:Number(id),p_method:'mpesa',p_note:null}),'Payment confirmed')) refresh(true); }, 'pay-reject':async function(id){ if(!confirm('Mark this payment as NOT received? The customer will be told.')) return; if(await run(sb.rpc('reject_payment',{p_order:Number(id)}),'Marked as not received')) refresh(true); }, 'pay-table':function(id,el){ payTable(el.dataset.table,el.dataset.loc); }, 'otype':function(id){ S.f.otype=id; rOrders(); },
   'staff-active':function(id,el){ var on=el.dataset.on==='1'; if(!on&&!confirm('Deactivate this restaurant admin? They cannot sign in until you activate them again.')) return; staffCall({action:'set_active',user_id:id,active:on},on?'Admin activated':'Admin deactivated'); },
   'staff-reset':function(id){ var pw=prompt('Type a new password for this restaurant admin (8+ characters):'); if(!pw) return; staffCall({action:'reset_password',user_id:id,password:pw},'Password changed. Tell the restaurant admin.'); },
   'pay-export':exportPayments
@@ -507,6 +530,6 @@ $('login-form').addEventListener('submit',login);
 ['pay-days','pay-method','pay-status'].forEach(function(id){ $(id).addEventListener('change',rPayments); });
 $('branch-filter').addEventListener('change',function(){ S.branch=this.value; render(); });
 $('t-branch').addEventListener('change',function(){ $('t-count').value=(curTableBranch()||{}).table_count||20; $('qr-grid').innerHTML=''; });
-[['d-file','d-prev'],['e-file','e-prev'],['g-file','g-prev']].forEach(function(p){ $(p[0]).addEventListener('change',function(){ var f=this.files[0]; prev(p[1],f?URL.createObjectURL(f):null); }); });
+[['d-file','d-prev'],['e-file','e-prev'],['g-file','g-prev'],['l-payqr-file','l-payqr-prev']].forEach(function(p){ $(p[0]).addEventListener('change',function(){ var f=this.files[0]; prev(p[1],f?URL.createObjectURL(f):null); }); });
 boot();
 })();
