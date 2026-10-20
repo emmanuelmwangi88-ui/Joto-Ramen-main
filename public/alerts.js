@@ -1,4 +1,4 @@
-/* Used by the admin panel. Deliberately quiet: ONE short beep per event, a single short buzz on phones,
+/* Alerts for the admin panel: one short beep per event, a single short buzz on phones,
    and at most one system notification. Nothing repeats and the page title does not flash. */
 (function () {
   var ctx = null, baseTitle = document.title;
@@ -31,7 +31,7 @@
     notify: function (title, body, tag, url) {
       try {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
-        var opts = { body: body, tag: tag || 'joto', silent: true, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: url || location.pathname } };
+        var opts = { body: body, tag: tag || 'joto', silent: true, icon: 'images/brand/icon-192.png', badge: 'images/brand/icon-192.png', data: { url: url || location.pathname } };
         if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
           navigator.serviceWorker.getRegistration().then(function (reg) { if (reg && reg.showNotification) reg.showNotification(title, opts); else new Notification(title, opts); }).catch(function () { try { new Notification(title, opts); } catch (e) {} });
         } else { new Notification(title, opts); }

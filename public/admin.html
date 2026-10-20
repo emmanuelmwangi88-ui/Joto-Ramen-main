@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#14110f">
 <link rel="manifest" href="admin.webmanifest">
-<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="images/brand/icon-192.png"><link rel="apple-touch-icon" href="images/brand/icon-192.png">
 <title>Joto Ramen: Admin</title>
 <style>
 :root{--bg:#14110f;--panel:#1d1916;--panel2:#26211d;--line:#352f29;--text:#f4ede2;--muted:#a79c8e;--red:#d9382b;--gold:#d9a441;--green:#3fb67a;--blue:#4c8bf5;--warn:#e0a526;--radius:12px}
@@ -98,6 +98,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
 </style>
 </head>
 <body>
+<noscript><div style="padding:16px;text-align:center;background:#E84545;color:#fff;font-family:sans-serif">Please turn on JavaScript to use this page. You can also call us to order.</div></noscript>
 
 <div id="login-screen">
   <form class="login-card" id="login-form" autocomplete="on">
@@ -117,6 +118,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
     <button class="nav active" data-view="dashboard">🏠 Dashboard</button>
     <button class="nav" data-view="orders">🧾 Orders <span class="badge hidden" id="b-orders"></span></button>
     <button class="nav" data-view="payments">💳 Payments</button>
+    <button class="nav" data-view="payacc" data-owner>💼 Payment accounts</button>
     <button class="nav" data-view="menu">🍜 Menu &amp; Prices</button>
     <button class="nav" data-view="reservations">📅 Reservations <span class="badge hidden" id="b-res"></span></button>
     <button class="nav" data-view="events">🎉 Events</button>
@@ -157,6 +159,11 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
         <p class="hint">Every M-Pesa request and every cash or manual payment is saved here. Pending means the customer has not entered their PIN yet.</p></div>
       <div class="sum" id="pay-summary"></div>
       <div class="card scroll" style="padding:6px" id="pay-list"></div>
+    </section>
+
+    <section id="v-payacc" class="view hidden">
+      <div class="card"><h3>Payment accounts</h3><p class="hint">Every restaurant currently uses the shared <b>demo account</b>: customers can try the M-Pesa prompt but <b>no real money moves</b>. When a restaurant's own paybill or till has been approved by Safaricom (Go Live), enter its number and Daraja details below, save, then switch <b>Live payments</b> on for that restaurant. Until then the switch stays locked. The keys are stored where only the server can read them and are never shown again.</p></div>
+      <div id="payacc-list"></div>
     </section>
 
     <section id="v-menu" class="view hidden">
@@ -271,7 +278,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <label>Labels</label><div class="tags" id="d-tags">
     <label><input type="checkbox" value="signature"> Signature</label><label><input type="checkbox" value="popular"> Popular</label><label><input type="checkbox" value="vegan"> Vegan</label>
     <label><input type="checkbox" value="spicy"> Spicy</label><label><input type="checkbox" value="chef"> Chef's pick</label><label><input type="checkbox" value="pork"> Contains pork</label></div>
-  <label for="d-file">Photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="d-file" accept="image/*"><input type="text" id="d-url" placeholder="or paste an image link" style="margin-top:8px"><img id="d-prev" class="preview hidden" alt="">
+  <label for="d-file">Photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="d-file" accept="image/*"><input type="hidden" id="d-url"><img id="d-prev" class="preview hidden" alt="">
   <label>Served at</label><div class="tags" id="d-branches"></div><p class="hint">Untick a branch to hide this dish there (for example pork at Kenrail Towers).</p>
   <label class="tags"><span style="display:flex;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="d-avail" checked style="width:auto"> Visible to customers</span></label>
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Save dish</button></div>
@@ -294,7 +301,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <label for="e-loc">Where</label><input type="text" id="e-loc" list="loc-names" placeholder="Pick a branch or type a place" maxlength="120"><datalist id="loc-names"></datalist>
   <label for="e-branch">Branch</label><select id="e-branch"></select>
   <label for="e-desc">Details</label><textarea id="e-desc" rows="3" maxlength="500"></textarea>
-  <label for="e-file">Poster / photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="e-file" accept="image/*"><input type="text" id="e-url" placeholder="or paste an image link" style="margin-top:8px"><img id="e-prev" class="preview hidden" alt="">
+  <label for="e-file">Poster / photo <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="e-file" accept="image/*"><input type="hidden" id="e-url"><img id="e-prev" class="preview hidden" alt="">
   <label class="tags"><span style="display:flex;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="e-pub" checked style="width:auto"> Show on website</span></label>
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Save event</button></div>
 </form></div>
@@ -307,7 +314,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <div class="grid g2"><div><label for="l-phone">Branch phone (optional)</label><input type="tel" id="l-phone"><p class="hint">Empty uses the main phone.</p></div>
   <div data-owner><label for="l-order">Display order</label><input type="number" id="l-order" value="10"></div></div>
   <div class="grid g2"><div><label for="l-tables">Number of tables</label><input type="number" id="l-tables" min="0" max="60" value="20"></div><div></div></div>
-  <label for="l-payqr-file">M-Pesa payment QR (till or paybill QR image)</label><input type="file" id="l-payqr-file" accept="image/*"><input type="text" id="l-payqr-url" placeholder="or paste an image link" style="margin-top:8px"><img id="l-payqr-prev" class="preview hidden" alt="">
+  <label for="l-payqr-file">M-Pesa payment QR (till or paybill QR image)</label><input type="file" id="l-payqr-file" accept="image/*"><input type="hidden" id="l-payqr-url"><img id="l-payqr-prev" class="preview hidden" alt="">
   <label for="l-paynote">What customers should see next to the QR</label><input type="text" id="l-paynote" maxlength="120" placeholder="e.g. Till 123456, Joto Ramen Lavington">
   <label for="l-hours">Opening hours (one line per row)</label><textarea id="l-hours" rows="3" placeholder="Mon-Thu: 12pm - 11pm&#10;Fri & Sat: 12pm - 3am"></textarea>
   <label for="l-note">Short note (optional)</label><input type="text" id="l-note" maxlength="140" placeholder="e.g. Pork dishes available at this branch">
@@ -319,13 +326,14 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
 <!-- Gallery modal -->
 <div class="modal" id="m-gal"><form class="box" id="f-gal">
   <h3>Add photo</h3>
-  <label for="g-file">Upload <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="g-file" accept="image/*"><input type="text" id="g-url" placeholder="or paste an image link" style="margin-top:8px"><img id="g-prev" class="preview hidden" alt="">
+  <label for="g-file">Upload <small style="color:var(--muted)">(any photo up to 50 MB; big ones are resized for you)</small></label><input type="file" id="g-file" accept="image/*"><input type="hidden" id="g-url"><img id="g-prev" class="preview hidden" alt="">
   <label for="g-branch">Branch</label><select id="g-branch"></select>
   <label for="g-alt">Caption</label><input type="text" id="g-alt" maxlength="120">
   <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit">Add photo</button></div>
 </form></div>
 
 <div id="print-slip"></div>
+<input type="file" id="quick-photo" accept="image/*" class="hidden" aria-label="Choose a photo">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>

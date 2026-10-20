@@ -127,3 +127,6 @@
 .mo-go{padding:12px;border:0;border-radius:10px;background:#16a34a;color:#fff;font-weight:800;cursor:pointer}
 .mo-msg{font-size:.85rem;color:#C9A84C;min-height:1em}
 .mo-qr img{width:100%;max-width:260px;margin:0 auto;background:#fff;padding:10px;border-radius:14px}.mo-qr p{margin:0;text-align:center;color:rgba(245,236,215,.85);font-size:.88rem}
+
+/* keep "hidden" working on elements that have their own display style */
+.orders-fab.hidden,.fab-badge.hidden,.mo-pill.hidden{display:none!important}

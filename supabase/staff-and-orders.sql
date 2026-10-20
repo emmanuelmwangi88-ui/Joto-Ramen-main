@@ -178,6 +178,7 @@ begin
 end $$;
 
 -- staff management (admin only)
+drop function if exists public.list_users();
 create or replace function public.list_users() returns table(id uuid, email text, name text, is_admin boolean, is_staff boolean, created_at timestamptz)
 language sql security definer set search_path = public, auth as $$
   select u.id, u.email::text, p.name, coalesce(p.is_admin,false), coalesce(p.is_staff,false), u.created_at

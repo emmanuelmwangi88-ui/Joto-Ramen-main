@@ -5,22 +5,25 @@ var DEFAULT_LOCATIONS = [
   {id:2,slug:'lavington',name:'Lavington Mall',address:'1st Floor, Lavington Mall, James Gichuru Road, Lavington, Nairobi',phone:'',hours:'Mon-Thu & Sun: 12pm - 11:30pm\nFri & Sat: 12pm - 3:30am',note:'Pork dishes are available at this branch.',map_query:'Lavington Mall James Gichuru Road Nairobi',table_count:20},
   {id:3,slug:'kenrail',name:'Joto Ramen Premium (Kenrail Towers)',address:'M3 Floor, Kenrail Towers, Ring Road, Parklands, Nairobi',phone:'',hours:'Daily: 11am - 11pm',note:'No pork is served at this branch.',map_query:'Kenrail Towers Ring Road Parklands Nairobi',table_count:20}];
 var FALLBACK_MENU = [
-  {id:1,name:'Special Shoyu',name_jp:'特製醤油',description:'Clean soy-based broth with gentle smokiness, pulled chicken and seaweed.',price:1850,category:'ramen',tags:['signature'],spicy:0,image_url:'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=600',unavailable_at:[]},
-  {id:2,name:'Special Miso',name_jp:'特製味噌',description:'Rich and bold miso broth with corn, chicken mince and spring onions.',price:1850,category:'ramen',tags:['signature','popular'],spicy:0,image_url:'https://images.unsplash.com/photo-1626804475297-411dbe6373b3?w=600',unavailable_at:[]},
-  {id:3,name:'Special Vegan Ramen',name_jp:'ビーガンラーメン',description:'Creamy mushroom and soy-milk broth with handmade noodles.',price:1650,category:'ramen',tags:['vegan'],spicy:0,image_url:'https://images.unsplash.com/photo-1546060754-72d961c45a45?w=600',unavailable_at:[]},
-  {id:4,name:'Karaage',name_jp:'唐揚げ',description:'Japanese-style fried chicken, crispy outside and juicy inside.',price:698,category:'starters',tags:[],spicy:0,image_url:'https://images.unsplash.com/photo-1580476262798-bddd9dd90e3e?w=600',unavailable_at:[]}];
+  {id:1,name:'Special Shoyu',name_jp:'特製醤油',description:'Clean soy-based broth with gentle smokiness, pulled chicken and seaweed.',price:1850,category:'ramen',tags:['signature'],spicy:0,image_url:'images/menu/ramen-shoyu.svg',unavailable_at:[]},
+  {id:2,name:'Special Miso',name_jp:'特製味噌',description:'Rich and bold miso broth with corn, chicken mince and spring onions.',price:1850,category:'ramen',tags:['signature','popular'],spicy:0,image_url:'images/menu/ramen-miso.svg',unavailable_at:[]},
+  {id:3,name:'Special Vegan Ramen',name_jp:'ビーガンラーメン',description:'Creamy mushroom and soy-milk broth with handmade noodles.',price:1650,category:'ramen',tags:['vegan'],spicy:0,image_url:'images/menu/ramen-vegan.svg',unavailable_at:[]},
+  {id:4,name:'Karaage',name_jp:'唐揚げ',description:'Japanese-style fried chicken, crispy outside and juicy inside.',price:698,category:'starters',tags:[],spicy:0,image_url:'images/menu/starter-karaage.svg',unavailable_at:[]}];
 var CFG = {min_order:1500, delivery_fee:200, mpesa:false};
 var mainPhone='+254726652586', mainWa='254726652586';
 var tableMode=false, tableCode='', mode=null;
 var menuItems=[], galleryImages=[], customerReviews=[], locationsList=[], eventsList=[];
 var branch=null, currentCat='all', cart={}, currentUser=null, currentProfile=null, currentRating=0, ordering=false;
 
-/* ---------- images ---------- */
-var T320='?t=W3sicmVzaXplIjp7Im1vZGUiOiJmaXQiLCJ3aWR0aCI6MzIwLCJoZWlnaHQiOjMyMH19XQ==';
-var T800='?t=W3sicmVzaXplIjp7Im1vZGUiOiJmaXQiLCJ3aWR0aCI6ODAwLCJoZWlnaHQiOjgwMH19XQ==';
-function hiRes(u){ return (u&&u.indexOf('glovo.dhmedia.io')!==-1&&u.indexOf(T320)!==-1)?u.replace(T320,T800):u; }
-function imgFail(el){ var u=el.getAttribute('src')||''; if(u.indexOf(T800)!==-1&&!el.dataset.retry){ el.dataset.retry='1'; el.src=u.replace(T800,T320); } else { el.style.display='none'; } }
-function imgTag(url,alt,cls){ return url?'<img src="'+esc(hiRes(url))+'" alt="'+esc(alt)+'" loading="lazy" decoding="async" class="img-fade '+(cls||'w-full h-full object-cover')+'" onload="this.classList.add(\'loaded\')" onerror="imgFail(this)">':''; }
+/* ---------- images (all saved in /images, or uploaded in Admin) ---------- */
+function imgFail(el){
+  var fb=el.getAttribute('data-fb');
+  if(fb&&!el.dataset.fbDone){ el.dataset.fbDone='1'; el.src=fb; return; }
+  el.style.display='none';
+}
+function imgTag(url,alt,cls,fallback){
+  return url?'<img src="'+esc(url)+'" alt="'+esc(alt)+'" loading="lazy" decoding="async" class="img-fade '+(cls||'w-full h-full object-cover')+'"'+(fallback?' data-fb="'+esc(fallback)+'"':'')+' onload="this.classList.add(\'loaded\')" onerror="imgFail(this)">':'';
+}
 function zoomImg(el){ var i=el.querySelector('img'); if(i&&i.getAttribute('src')&&i.style.display!=='none') openLightbox(i.getAttribute('src')); }
 function openLightbox(src){ var l=document.getElementById('lightbox'), i=document.getElementById('lightbox-img'); if(l&&i){ i.src=src; l.classList.add('active'); } }
 function closeLightbox(){ var l=document.getElementById('lightbox'); if(l) l.classList.remove('active'); }
@@ -119,6 +122,7 @@ async function loadSettings(){
 }
 
 /* ---------- menu ---------- */
+var CAT_ART={ramen:'ramen-shoyu',starters:'starter-karaage',sides:'side-rice',drinks:'drink-soda',desserts:'dessert-icecream',toppings:'topping-egg'};
 var CAT_ORDER=['ramen','starters','sides','drinks','desserts','toppings'];
 var CAT_META={ramen:{jp:'ラーメン',en:'Ramen',sub:'Slow-simmered broths, handmade noodles'},starters:{jp:'前菜',en:'Starters',sub:'Small plates, made to share'},sides:{jp:'サイド',en:'Rice & Sides',sub:'Hearty extras'},drinks:{jp:'飲み物',en:'Drinks',sub:'Cold and refreshing'},desserts:{jp:'デザート',en:'Desserts',sub:'A sweet finish'},toppings:{jp:'トッピング',en:'Extras',sub:'Make your bowl your own'}};
 function sortMenu(list){ return list.slice().sort(function(a,b){ return (CAT_ORDER.indexOf(a.category)-CAT_ORDER.indexOf(b.category))||(a.id-b.id); }); }
@@ -137,7 +141,7 @@ function dishHTML(item,n,feature){
   var spice=item.spicy>0?'<span class="dish-spice" aria-label="Spice level '+item.spicy+' of 5">'+'🌶️'.repeat(item.spicy)+'</span>':'';
   return '<article class="dish '+(feature?'dish--feature':'dish--plain')+(rec?' dish--rec':'')+'">'+
     (rec?'<span class="dish-ribbon">Recommended</span>':'')+
-    '<div class="dish-photo skeleton'+(item.image_url?' zoomable':'')+'" onclick="zoomImg(this)">'+imgTag(item.image_url,item.name)+'</div>'+
+    '<div class="dish-photo skeleton'+(item.image_url?' zoomable':'')+'" onclick="zoomImg(this)">'+imgTag(item.image_url,item.name,null,'images/menu/'+(CAT_ART[item.category]||'ramen-shoyu')+'.svg')+'</div>'+
     '<div class="dish-body"><div class="dish-top"><span class="dish-no">No.'+String(n).padStart(2,'0')+'</span>'+spice+'</div>'+
     '<h4 class="dish-name">'+esc(item.name)+'</h4>'+(item.name_jp?'<p class="dish-jp japanese-font">'+esc(item.name_jp)+'</p>':'')+
     '<p class="dish-desc">'+esc(item.description||'')+'</p>'+(tags?'<div class="dish-tags">'+tags+'</div>':'')+
@@ -160,7 +164,7 @@ function renderMenuItems(category){
 }
 function filterMenu(category){ renderMenuItems(category); }
 function featuredCardHTML(i){
-  return '<div class="feat-card"><div class="aspect-square skeleton relative overflow-hidden zoomable" onclick="zoomImg(this)">'+imgTag(i.image_url,i.name)+'</div>'+
+  return '<div class="feat-card"><div class="aspect-square skeleton relative overflow-hidden zoomable" onclick="zoomImg(this)">'+imgTag(i.image_url,i.name,null,'images/menu/'+(CAT_ART[i.category]||'ramen-shoyu')+'.svg')+'</div>'+
     '<div class="p-2.5 md:p-3"><h3 class="text-sm font-bold text-parchment leading-snug line-clamp-2 min-h-[2.5rem]">'+esc(i.name)+'</h3>'+
     '<div class="flex items-center justify-between mt-1"><span class="text-sm font-bold text-lantern-red">'+money(i.price)+'</span>'+
     '<button type="button" onclick="addToCart('+Number(i.id)+')" aria-label="Add '+esc(i.name)+'" class="w-8 h-8 rounded-full bg-lantern-red text-white text-lg leading-none active:scale-90">＋</button></div></div></div>';
@@ -297,7 +301,7 @@ function payAreaHTML(o,left,b){
   var h='<div class="mo-pay"><div class="mo-pay-title">Pay '+money(o.total)+'</div>';
   if(locked) h+='<div class="mo-note">Payment opens in <b data-left="'+o.id+'">'+mmss(left)+'</b>, once the time to cancel is over.</div>';
   h+='<div class="mo-pay-btns">'+(CFG.mpesa?'<button type="button" class="'+(panelOpen[o.id]==='mpesa'?'on':'')+'" '+(locked?'disabled':'')+' onclick="payPanel('+o.id+',\'mpesa\')">📱 M-Pesa prompt</button>':'')+(hasQr?'<button type="button" class="'+(panelOpen[o.id]==='qr'?'on':'')+'" '+(locked?'disabled':'')+' onclick="payPanel('+o.id+',\'qr\')">🔳 Scan QR</button>':'')+'</div>';
-  if(!locked&&panelOpen[o.id]==='mpesa'&&CFG.mpesa) h+='<div class="mo-panel"><label for="pp-'+o.id+'">M-Pesa number to charge</label><input id="pp-'+o.id+'" type="tel" inputmode="tel" value="'+esc(loadMe().phone||o.phone||'')+'" placeholder="0712 345 678"><button type="button" class="mo-go" onclick="payMpesa('+o.id+')">Send payment request</button><div class="mo-msg" id="pm-'+o.id+'" aria-live="polite">'+esc(payMsg[o.id]||'')+'</div></div>';
+  if(!locked&&panelOpen[o.id]==='mpesa'&&CFG.mpesa) h+='<div class="mo-panel"><label for="pp-'+o.id+'">M-Pesa number to charge</label><input id="pp-'+o.id+'" type="tel" inputmode="tel" value="'+esc(loadMe().phone||o.phone||'')+'" placeholder="0712 345 678"><button type="button" class="mo-go" onclick="payMpesa('+o.id+')">Send payment request</button>'+(b.pay_live?'':'<div class="mo-note">Demo mode: this is a test payment and no real money is taken.</div>')+'<div class="mo-msg" id="pm-'+o.id+'" aria-live="polite">'+esc(payMsg[o.id]||'')+'</div></div>';
   if(!locked&&panelOpen[o.id]==='qr'&&hasQr) h+='<div class="mo-panel mo-qr"><img src="'+esc(b.pay_qr_url)+'" alt="M-Pesa payment QR code"><p>Scan with the M-Pesa app and pay exactly <b>'+money(o.total)+'</b>.'+(b.pay_note?'<br>'+esc(b.pay_note):'')+'<br>Reference: <b>Order #'+o.id+'</b></p><label for="pc-'+o.id+'">M-Pesa confirmation code (optional)</label><input id="pc-'+o.id+'" type="text" maxlength="14" autocomplete="off" placeholder="e.g. QWE1R2T3Y4"><button type="button" class="mo-go" onclick="claimQr('+o.id+')">I have paid</button><div class="mo-msg" aria-live="polite">'+esc(payMsg[o.id]||'')+'</div></div>';
   return h+'</div>';
 }
@@ -459,7 +463,7 @@ function renderGallery(){
   if(!imgs.length){ if(sec) sec.classList.add('hidden'); return; }
   if(sec) sec.classList.remove('hidden');
   grid.innerHTML=imgs.map(function(im,i){
-    return '<div class="gallery-item skeleton '+(i===0?'md:col-span-2 md:row-span-2':'')+' fade-in-section visible" data-src="'+esc(hiRes(im.src))+'">'+imgTag(im.src,im.alt||'Joto Ramen','w-full h-full object-cover')+'<div class="overlay"><p>'+esc(im.alt||'')+'</p></div></div>';
+    return '<div class="gallery-item skeleton '+(i===0?'md:col-span-2 md:row-span-2':'')+' fade-in-section visible" data-src="'+esc(im.src)+'">'+imgTag(im.src,im.alt||'Joto Ramen','w-full h-full object-cover')+'<div class="overlay"><p>'+esc(im.alt||'')+'</p></div></div>';
   }).join('');
   grid.querySelectorAll('.gallery-item').forEach(function(el){ el.addEventListener('click',function(){ openLightbox(el.getAttribute('data-src')); }); });
 }

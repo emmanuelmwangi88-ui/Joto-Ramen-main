@@ -7,7 +7,7 @@ var S={me:null,menu:[],orders:[],res:[],events:[],locs:[],reviews:[],gallery:[],
 var $=function(id){return document.getElementById(id);};
 var val=function(id){var e=$(id);return e?e.value.trim():'';};
 var CATS={ramen:'Ramen',starters:'Starters',sides:'Sides',drinks:'Drinks',desserts:'Desserts',toppings:'Toppings'};
-var TITLES={dashboard:'Dashboard',orders:'Orders',payments:'Payments',menu:'Menu & Prices',reservations:'Reservations',events:'Events',locations:'Locations',tables:'Tables & QR',reviews:'Reviews',gallery:'Gallery',staff:'Staff',settings:'Settings'};
+var TITLES={dashboard:'Dashboard',orders:'Orders',payments:'Payments',payacc:'Payment accounts',menu:'Menu & Prices',reservations:'Reservations',events:'Events',locations:'Locations',tables:'Tables & QR',reviews:'Reviews',gallery:'Gallery',staff:'Staff',settings:'Settings'};
 var BADGE={pending:'warning',confirmed:'info',completed:'success',approved:'success',cancelled:'danger'};
 var TYPE_LABEL={dine_in:'Dine-in',delivery:'Delivery',pickup:'Pickup'};
 var _UNUSED_ACT_LABEL={login:['🔑','Signed in'],shift_start:['🟢','Started shift'],shift_end:['⚪','Ended shift'],order_placed:['🧾','Took an order'],order_accepted:['👍','Accepted order'],order_ready:['🍜','Order ready'],order_served:['✅','Served'],order_cancelled:['✖','Cancelled order'],payment:['💵','Recorded payment'],table_paid:['💳','Closed a table'],request_done:['🙋','Answered a request']};
@@ -107,6 +107,7 @@ function go(v){
   document.querySelectorAll('.nav[data-view]').forEach(function(n){n.classList.toggle('active',n.dataset.view===v);});
   $('title').textContent=TITLES[v]; $('side').classList.remove('open');
   if(v==='staff'&&S.me.role==='owner') loadUsers();
+  if(v==='payacc'&&S.me.role==='owner') loadPayAcc();
   if(v==='orders') Alerts.stopFlash();
   render();
 }
@@ -115,7 +116,7 @@ function render(){
   var po=br(S.orders).filter(function(o){return o.status==='pending';}).length, pr=br(S.res).filter(function(r){return r.status==='pending';}).length, pv=br(S.reviews).filter(function(r){return r.status==='pending';}).length;
   [['b-orders',po],['b-res',pr],['b-rev',pv]].forEach(function(b){ var e=$(b[0]); e.textContent=b[1]; e.classList.toggle('hidden',!b[1]); });
   document.title=(po?'('+po+') ':'')+'Joto Ramen: Admin'; Alerts.setBaseTitle(document.title);
-  ({dashboard:rDash,orders:rOrders,payments:rPayments,menu:rMenu,reservations:rRes,events:rEvents,locations:rLocs,tables:rTables,reviews:rRev,gallery:rGal,staff:rStaff,settings:rSettings})[S.view]();
+  ({dashboard:rDash,orders:rOrders,payments:rPayments,payacc:rPayAcc,menu:rMenu,reservations:rRes,events:rEvents,locations:rLocs,tables:rTables,reviews:rRev,gallery:rGal,staff:rStaff,settings:rSettings})[S.view]();
 }
 function chips(el,list,cur,key,counts){ el.innerHTML=list.map(function(c){ return '<button class="chip'+(cur===c?' active':'')+'" data-act="chip" data-key="'+key+'" data-id="'+c+'">'+esc(capitalize(c))+(counts?' ('+counts(c)+')':'')+'</button>'; }).join(''); }
 
@@ -243,6 +244,40 @@ function exportPayments(){
   var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='joto-payments-'+today()+'.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
 
+/* ---------- payment accounts (owner): each restaurant's own paybill or till, off until approved ---------- */
+async function loadPayAcc(){ var r=await sb.functions.invoke('payment-settings',{body:{action:'list'}}); if(r.error){ showToast(await fnError(r.error),'error'); return; } S.payacc=(r.data&&r.data.accounts)||[]; if(S.view==='payacc') rPayAcc(); }
+function rPayAcc(){
+  var box=$('payacc-list'); if(!box) return;
+  if(!S.payacc){ box.innerHTML='<div class="card empty">Loading…</div>'; return; }
+  box.innerHTML=S.payacc.map(function(a){
+    var live=!!a.pay_live, till=a.pay_kind==='till';
+    var saved=function(has,tail){ return has?('Saved'+(tail?' (ends '+esc(tail)+')':'')+'. Type to replace'):'Paste here'; };
+    return '<div class="card" data-pa="'+a.id+'"><div class="top" style="margin-bottom:6px"><h3 style="flex:1">'+esc(a.name)+'</h3>'+(live?'<span class="pill online">Live</span>':'<span class="pill pending">Demo account in use</span>')+'</div>'+
+      '<div class="grid g2"><div><label>Account type</label><select data-f="pay_kind"><option value="">Not set up yet</option><option value="paybill"'+(a.pay_kind==='paybill'?' selected':'')+'>Paybill</option><option value="till"'+(till?' selected':'')+'>Till (Buy Goods)</option></select></div>'+
+      '<div><label>Paybill or till number</label><input type="text" inputmode="numeric" data-f="pay_number" maxlength="7" value="'+esc(a.pay_number||'')+'" placeholder="e.g. 400200"></div>'+
+      '<div><label>Store number (tills only)</label><input type="text" inputmode="numeric" data-f="pay_store" maxlength="7" value="'+esc(a.pay_store||'')+'" placeholder="Safaricom gives this with a till"></div><div></div>'+
+      '<div><label>Consumer key</label><input type="password" autocomplete="off" data-f="consumer_key" placeholder="'+saved(a.has_key,a.key_tail)+'"></div>'+
+      '<div><label>Consumer secret</label><input type="password" autocomplete="off" data-f="consumer_secret" placeholder="'+saved(a.has_secret)+'"></div>'+
+      '<div><label>Passkey</label><input type="password" autocomplete="off" data-f="passkey" placeholder="'+saved(a.has_passkey)+'"></div></div>'+
+      '<div class="row" style="padding:12px 0 0;border:0"><label class="switch" style="margin:0" title="'+(a.ready?'Charge this restaurant\'s own account':'Save all the details first')+'"><input type="checkbox" data-act="pay-live" data-id="'+a.id+'"'+(live?' checked':'')+(a.ready||live?'':' disabled')+' aria-label="Live payments"><i></i></label><div class="grow"><b>Live payments</b><div class="meta">'+(live?'Customers are charged real money to this '+(till?'till':'paybill')+'.':(a.ready?'Ready. Switch on when Safaricom has approved Go Live for this number.':'Locked until the number and all three credentials are saved.'))+'</div></div>'+
+      '<button class="btn sm" data-act="pay-clear" data-id="'+a.id+'">Remove keys</button><button class="btn sm primary" data-act="pay-save" data-id="'+a.id+'">Save</button></div></div>';
+  }).join('')||'<div class="card empty">No restaurants yet.</div>';
+}
+async function savePayAcc(id){
+  var card=document.querySelector('[data-pa="'+id+'"]'); if(!card) return; var body={action:'save',location_id:Number(id)};
+  card.querySelectorAll('[data-f]').forEach(function(e){ body[e.dataset.f]=e.value.trim(); });
+  var r=await sb.functions.invoke('payment-settings',{body:body}); if(r.error){ showToast(await fnError(r.error),'error'); return; }
+  showToast(r.data&&r.data.ready?'Saved. This restaurant is ready: you can switch Live payments on.':'Saved. Live payments stay locked until everything is filled in.','success'); loadPayAcc();
+}
+async function setPayLive(id,el){
+  var on=el.checked, a=(S.payacc||[]).filter(function(x){return String(x.id)===String(id);})[0]||{};
+  if(on&&!confirm('Switch LIVE payments on for '+(a.name||'this restaurant')+'?\n\nCustomers will be charged real money to its '+(a.pay_kind==='till'?'till ':'paybill ')+(a.pay_number||'')+'.')){ el.checked=false; return; }
+  var r=await sb.functions.invoke('payment-settings',{body:{action:'set_live',location_id:Number(id),live:on}});
+  if(r.error){ el.checked=!on; showToast(await fnError(r.error),'error'); return; }
+  showToast(on?'Live payments are ON':'Back to the demo account','success'); loadPayAcc();
+}
+async function clearPayAcc(id){ if(!confirm('Remove the saved Daraja keys for this restaurant? Live payments will switch off.')) return; var r=await sb.functions.invoke('payment-settings',{body:{action:'clear_credentials',location_id:Number(id)}}); if(r.error){ showToast(await fnError(r.error),'error'); return; } showToast('Keys removed','success'); loadPayAcc(); }
+
 /* ---------- menu ---------- */
 function rMenu(){
   var q=val('m-search').toLowerCase(), c=$('m-cat').value, st=$('m-status').value, mgr=isMgr();
@@ -260,7 +295,7 @@ function rMenu(){
       (i.image_url?'<img class="thumb" loading="lazy" alt="" src="'+esc(i.image_url)+'" onerror="this.style.visibility=\'hidden\'">':'<div class="thumb"></div>')+
       '<div class="grow"><div class="name">'+esc(i.name)+'</div><div class="meta">'+esc(CATS[i.category]||i.category)+((i.tags||[]).length?' · '+(i.tags||[]).map(esc).join(', '):'')+(!mgr&&off.length?' · <span style="color:var(--warn)">not at '+esc(off.join(', '))+'</span>':'')+(mgr&&!i.is_available?' · <span style="color:var(--warn)">switched off by the owner</span>':'')+'</div></div>'+
       (mgr?'<span class="meta" style="min-width:90px;text-align:right">'+money(i.price)+'</span>':'<label style="margin:0;display:flex;align-items:center;gap:6px">KSh <input class="price-in" type="number" min="0" step="10" data-act="price" data-id="'+i.id+'" value="'+i.price+'" aria-label="Price of '+esc(i.name)+'"></label>')+sw+
-      (mgr?'':'<button class="btn sm" data-act="menu-edit" data-id="'+i.id+'">Edit</button><button class="btn sm danger" data-act="menu-del" data-id="'+i.id+'">Delete</button>')+'</div>';}).join(''):'<div class="empty">No dishes match.</div>';
+      (mgr?'':'<button class="btn sm" data-act="dish-photo" data-id="'+i.id+'" title="Upload a photo of this dish" aria-label="Upload a photo of '+esc(i.name)+'">📷</button><button class="btn sm" data-act="menu-edit" data-id="'+i.id+'">Edit</button><button class="btn sm danger" data-act="menu-del" data-id="'+i.id+'">Delete</button>')+'</div>';}).join(''):'<div class="empty">No dishes match.</div>';
 }
 async function savePrice(id,el){
   var v=parseInt(el.value,10), it=byId(S.menu,id); if(!it) return;
@@ -492,6 +527,8 @@ async function saveMpesa(){ var v=$('s-mpesa').checked?'1':'0'; if(await run(sb.
 var ACT={
   logout:logout, refresh:function(){refresh();}, close:closeAll, view:function(id){go(id);}, chip:function(id,el){S.f[el.dataset.key]=id; render();},
   'pick-branch':function(id){ S.branch=id; $('branch-filter').value=id; go('orders'); },
+  'pay-save':savePayAcc, 'pay-clear':clearPayAcc,
+  'dish-photo':function(id){ S.photoFor=id; var q=$('quick-photo'); q.value=''; q.click(); },
   'menu-new':function(){menuForm();}, 'menu-edit':function(id){menuForm(byId(S.menu,id));}, 'menu-del':menuDel, 'menu-show-all':showAll,
   'order-status':function(id,el){orderStatus(id,el.dataset.s);}, 'order-paid':openPay, 'order-del':orderDel,
   'res-status':function(id,el){resStatus(id,el.dataset.s);},
@@ -513,13 +550,13 @@ var ACT={
 document.addEventListener('click',function(e){
   if(e.target.classList&&e.target.classList.contains('modal')){ closeAll(); return; }
   var b=e.target.closest&&e.target.closest('[data-act]'); if(!b) return;
-  var a=b.dataset.act; if(['price','avail','bdish','event-pub','loc-active','wa'].indexOf(a)!==-1) return;
+  var a=b.dataset.act; if(['price','avail','bdish','event-pub','loc-active','pay-live','wa'].indexOf(a)!==-1) return;
   if(ACT[a]){ if(b.tagName==='A') return; ACT[a](b.dataset.id,b); }
 });
 document.addEventListener('change',function(e){
   var b=e.target.closest&&e.target.closest('[data-act]'); if(!b) return;
   var a=b.dataset.act, id=b.dataset.id;
-  if(a==='bdish') branchDish(id,b); else if(a==='price') savePrice(id,b); else if(a==='avail') toggleAvail(id,b); else if(a==='event-pub') eventPub(id,b); else if(a==='loc-active') locActive(id,b);
+  if(a==='pay-live') setPayLive(id,b); else if(a==='bdish') branchDish(id,b); else if(a==='price') savePrice(id,b); else if(a==='avail') toggleAvail(id,b); else if(a==='event-pub') eventPub(id,b); else if(a==='loc-active') locActive(id,b);
 });
 document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.act==='price'){ e.preventDefault(); e.target.blur(); } if(e.key==='Escape') closeAll(); });
 document.querySelectorAll('.nav[data-view]').forEach(function(n){ n.addEventListener('click',function(){ go(n.dataset.view); }); });
@@ -531,5 +568,10 @@ $('login-form').addEventListener('submit',login);
 $('branch-filter').addEventListener('change',function(){ S.branch=this.value; render(); });
 $('t-branch').addEventListener('change',function(){ $('t-count').value=(curTableBranch()||{}).table_count||20; $('qr-grid').innerHTML=''; });
 [['d-file','d-prev'],['e-file','e-prev'],['g-file','g-prev'],['l-payqr-file','l-payqr-prev']].forEach(function(p){ $(p[0]).addEventListener('change',function(){ var f=this.files[0]; prev(p[1],f?URL.createObjectURL(f):null); }); });
+$('quick-photo').addEventListener('change',async function(){
+  var f=this.files&&this.files[0], id=S.photoFor; if(!f||!id) return; S.photoFor=null;
+  var url; try{ url=await uploadImage(f,'menu'); }catch(err){ fail(err); return; }
+  if(await run(sb.from('menu_items').update({image_url:url}).eq('id',id),'Photo updated')) refresh(true);
+});
 boot();
 })();

@@ -295,16 +295,16 @@ insert into public.settings (key, value) values
 on conflict (key) do nothing;
 
 with seed(name,name_jp,description,price,category,tags,spicy,image_url) as (values
- ('Special Shoyu','特製醤油','Clean soy-based broth with gentle smokiness, pulled chicken, pork belly, and seaweed.',1850,'ramen',array['signature'],0,'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=600'),
- ('Special Miso','特製味噌','Rich and bold: miso paste, corn, ground meat, seared chashu pork, and spring onions.',1850,'ramen',array['signature','popular'],0,'https://images.unsplash.com/photo-1626804475297-411dbe6373b3?w=600'),
- ('Special Vegan Ramen','ビーガンラーメン','Joto''s original vegan ramen: a creamy mushroom and soy-milk broth with deep flavour and handmade noodles.',1650,'ramen',array['vegan'],0,'https://images.unsplash.com/photo-1546060754-72d961c45a45?w=600'),
- ('Spicy Miso','辛味噌','Our signature miso with an extra kick of chili oil and spicy ground pork.',1950,'ramen',array['spicy'],3,'https://images.unsplash.com/photo-1552611052-33e04de081de?w=600'),
- ('Karaage','唐揚げ','Japanese fried chicken, crispy outside and juicy inside.',698,'starters',array[]::text[],0,'https://images.unsplash.com/photo-1580476262798-bddd9dd90e3e?w=600'),
- ('Edamame','枝豆','Steamed soybeans with sea salt.',398,'starters',array['vegan'],0,'https://images.unsplash.com/photo-1596519415180-2624a8b2e5bb?w=600'),
- ('Gyoza','餃子','Pan-fried pork dumplings with crispy bottoms.',750,'starters',array[]::text[],0,'https://images.unsplash.com/photo-1623970533845-5b5e000a1e68?w=600'),
- ('Tornado Potatoes','トルネードポテト','Crispy spiral-cut potatoes on a stick.',650,'sides',array['vegan'],0,'https://images.unsplash.com/photo-1600205735056-04b2c0842a39?w=600'),
- ('Japanese Green Tea','緑茶','Authentic sencha green tea, hot or iced.',350,'drinks',array['vegan'],0,'https://images.unsplash.com/photo-1556816907-6c74f5e6e5a4?w=600'),
- ('Ramune','ラムネ','Classic Japanese soda in several flavours.',400,'drinks',array['vegan'],0,'https://images.unsplash.com/photo-1557862921-3789c8b971ae?w=600')
+ ('Special Shoyu','特製醤油','Clean soy-based broth with gentle smokiness, pulled chicken, pork belly, and seaweed.',1850,'ramen',array['signature'],0,null),
+ ('Special Miso','特製味噌','Rich and bold: miso paste, corn, ground meat, seared chashu pork, and spring onions.',1850,'ramen',array['signature','popular'],0,null),
+ ('Special Vegan Ramen','ビーガンラーメン','Joto''s original vegan ramen: a creamy mushroom and soy-milk broth with deep flavour and handmade noodles.',1650,'ramen',array['vegan'],0,null),
+ ('Spicy Miso','辛味噌','Our signature miso with an extra kick of chili oil and spicy ground pork.',1950,'ramen',array['spicy'],3,null),
+ ('Karaage','唐揚げ','Japanese fried chicken, crispy outside and juicy inside.',698,'starters',array[]::text[],0,null),
+ ('Edamame','枝豆','Steamed soybeans with sea salt.',398,'starters',array['vegan'],0,null),
+ ('Gyoza','餃子','Pan-fried pork dumplings with crispy bottoms.',750,'starters',array[]::text[],0,null),
+ ('Tornado Potatoes','トルネードポテト','Crispy spiral-cut potatoes on a stick.',650,'sides',array['vegan'],0,null),
+ ('Japanese Green Tea','緑茶','Authentic sencha green tea, hot or iced.',350,'drinks',array['vegan'],0,null),
+ ('Ramune','ラムネ','Classic Japanese soda in several flavours.',400,'drinks',array['vegan'],0,null)
 )
 insert into public.menu_items (name,name_jp,description,price,category,tags,spicy,image_url)
 select name,name_jp,description,price,category,tags,spicy,image_url from seed
